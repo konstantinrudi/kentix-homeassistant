@@ -7,7 +7,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import CONF_ENABLE_DOOR_CONTROL, DEFAULT_ENABLE_DOOR_CONTROL
 from .discovery import async_setup_dynamic_entities
 from .entity import KentixEntity
 from .models import KentixDoorLock
@@ -20,24 +19,22 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Kentix DoorLock buttons."""
+    """Set up Kentix DoorLock release buttons."""
     coordinator = entry.runtime_data.coordinator
-    if not entry.options.get(CONF_ENABLE_DOOR_CONTROL, DEFAULT_ENABLE_DOOR_CONTROL):
-        return
     async_setup_dynamic_entities(
         entry,
         coordinator,
         async_add_entities,
         lambda: coordinator.data.door_locks,
-        lambda door_lock: [KentixOpenDoorButton(coordinator, entry, door_lock)],
+        lambda door_lock: [KentixReleaseLockButton(coordinator, entry, door_lock)],
     )
 
 
-class KentixOpenDoorButton(KentixEntity, ButtonEntity):
-    """Momentarily release/open a Kentix DoorLock."""
+class KentixReleaseLockButton(KentixEntity, ButtonEntity):
+    """Momentarily enable manual rotation of a Kentix DoorLock."""
 
-    _attr_translation_key = "open_door"
-    _attr_icon = "mdi:door-open"
+    _attr_translation_key = "release_lock"
+    _attr_icon = "mdi:lock-open-variant"
 
     def __init__(
         self, coordinator, entry: ConfigEntry, door_lock: KentixDoorLock
@@ -48,10 +45,11 @@ class KentixOpenDoorButton(KentixEntity, ButtonEntity):
             "door_lock",
             door_lock.id,
             door_lock.name,
+            # Preserve the existing button unique ID across the rename.
             entity_key="door_lock_open",
         )
 
     async def async_press(self) -> None:
         await self.coordinator.async_execute_command(
-            lambda: self.coordinator.client.async_open_door_lock(self._object_id)
+            lambda: self.coordinator.client.async_release_door_lock(self._object_id)
         )

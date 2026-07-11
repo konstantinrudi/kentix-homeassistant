@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 - 2026-07-12
+
+- Register every discovered alarm group and DoorLock automatically in the Home Assistant device registry.
+- Represent the alarm-group hierarchy through parent/child device relationships.
+- Prefix alarm-group device names with `Standort`, `Gebäude`, `Etage`, or `Bereich` according to hierarchy depth.
+- Replace the misleading stateful lock entity and duplicate open button with one stateless **Release lock** button.
+- Enable DoorLock release controls automatically from first setup.
+- Remove obsolete Kentix lock entities from the Home Assistant entity registry during setup.
+
 ## 0.2.8 - 2026-07-12
 
 - Configure pytest-asyncio in `auto` mode, matching Home Assistant Core.

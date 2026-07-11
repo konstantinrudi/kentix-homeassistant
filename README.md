@@ -6,10 +6,10 @@ A local, HACS-compatible Home Assistant custom integration for KentixONE alarm g
 
 ## Features
 
-- Automatic discovery of all alarm groups visible to the SmartAPI user
+- Automatic discovery of all alarm groups visible to the SmartAPI user, including Home Assistant device-registry entries
 - Native `alarm_control_panel` entities with arm/disarm actions; runtime states are exposed only when a Kentix runtime response provides them
-- Automatic discovery of DoorLocks; door-contact entities are created only when a configured contact and runtime value are available
-- Optional, explicitly enabled door control using `lock.open` and a dedicated **Open door** button
+- Automatic discovery of DoorLocks as Home Assistant devices; door-contact entities are created only when a configured contact and runtime value are available
+- One accurate, stateless **Release lock** button per DoorLock; it briefly enables manual cylinder rotation instead of pretending that Kentix reports a locked/unlocked state
 - Dynamic creation of entities when Kentix objects are added later; no integration reload required
 - Local webhook endpoint for immediate refreshes, with polling as a reliable fallback
 - Home Assistant events for alarm changes, door changes, door opening and received Kentix webhooks
@@ -48,7 +48,7 @@ The setup flow asks for:
 
 Use a dedicated Kentix user with only the permissions required for the desired alarm groups and doors.
 
-Door control is **disabled by default**. Enable it under the integration's options only after the read-only entities work and the Kentix account has intentionally limited remote-open permissions.
+Door release controls are created automatically from the first setup. Use a dedicated Kentix account with intentionally limited DoorLock permissions.
 
 ### Polling interval
 
@@ -78,8 +78,7 @@ The receiver accepts `POST` and `PUT`, is registered as local-only, limits reque
 | Kentix data | Home Assistant entity |
 |---|---|
 | Alarm group | `alarm_control_panel` |
-| DoorLock | `lock` when door control is enabled |
-| Door remote-open action | `button` when door control is enabled |
+| DoorLock manual-rotation release | stateless `button` |
 | Door contact | `binary_sensor` |
 | DoorLock reachability | diagnostic `binary_sensor` |
 | Alarm-group/DoorLock API availability | diagnostic `binary_sensor` |
@@ -87,7 +86,16 @@ The receiver accepts `POST` and `PUT`, is registered as local-only, limits reque
 | DoorLock battery/RSSI | diagnostic `sensor` |
 | Webhook count/last reception | disabled-by-default diagnostic `sensor` |
 
-Entities are created only when their corresponding value is available in the API response.
+Alarm groups and DoorLocks are always registered as Home Assistant devices when they are visible to the SmartAPI user. Optional sensor entities are created only when their corresponding values are available in the API response.
+
+Alarm-group devices follow the Kentix hierarchy and are named automatically:
+
+- `Standort - <Name>` for top-level groups
+- `Gebäude - <Name>` for their children
+- `Etage - <Name>` for the next level
+- `Bereich - <Name>` for deeper nested groups
+
+Child devices are linked to their parent through Home Assistant's device registry. New Kentix objects discovered during later polling are added without reloading the integration.
 
 ## Events
 
@@ -118,16 +126,16 @@ actions:
         {{ trigger.event.data.new_state }}.
 ```
 
-Opening a door from an automation:
+Releasing a DoorLock from an automation:
 
 ```yaml
 sequence:
-  - action: lock.open
+  - action: button.press
     target:
-      entity_id: lock.front_door_lock
+      entity_id: button.front_door_release_lock
 ```
 
-Because this controls physical access, add your own confirmation, presence and authorization conditions around such an automation.
+The action does not claim to lock, unlock or report a persistent state. It briefly enables the user to rotate the cylinder manually. Because this controls physical access, add your own confirmation, presence and authorization conditions around such an automation.
 
 ## SmartAPI adapter
 
@@ -156,7 +164,7 @@ Kentix marks the currently documented DoorLock remote-open operation as deprecat
 - Keep TLS certificate verification enabled where possible.
 - Never expose the Home Assistant webhook path publicly.
 - Use a least-privilege Kentix API user.
-- Door control is opt-in.
+- Door release is available by default; restrict the Kentix API user to the required DoorLocks.
 - Tokens are redacted from diagnostics.
 - Raw Kentix payloads and access records are not included in diagnostics.
 - Webhook payloads are not persisted and are not treated as authoritative state.
@@ -173,11 +181,11 @@ python scripts/configure_repository.py YOUR_GITHUB_USERNAME
 
 This updates the documentation URL, issue tracker and Home Assistant `codeowners` field. Commit the changes and push them.
 
-To create release `0.2.4`:
+To create release `0.3.0`:
 
 ```bash
-git tag v0.2.4
-git push origin v0.2.4
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 The release workflow validates that the tag matches `manifest.json` and publishes a GitHub release. HACS installs the integration from the repository release using the standard `custom_components/kentix` structure.

@@ -6,8 +6,9 @@
 - `models.py`: firmware-tolerant normalization into immutable dataclasses
 - `coordinator.py`: one coordinated poll shared by all entities
 - `alarm_control_panel.py`: native alarm-group controls
-- `lock.py`: DoorLock representation and remote-open action
-- `button.py`: explicit, automation-friendly door-open action
+- `button.py`: stateless DoorLock cylinder-release action
+- `device_registry.py`: automatic device inventory and parent/child hierarchy
+- `naming.py`: hierarchy labels and device naming
 - `binary_sensor.py`: door-contact state
 
 ## Release plan
@@ -28,6 +29,12 @@
 - Translatable service/action errors
 
 ### 0.3.0
+
+- Automatic Home Assistant device-registry discovery
+- Alarm-group hierarchy naming and parent/child links
+- One accurate stateless DoorLock release button
+
+### Future
 
 - Active alarms and acknowledgement
 - Access events with privacy-conscious opt-in

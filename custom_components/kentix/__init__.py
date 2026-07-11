@@ -23,6 +23,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import KentixDataUpdateCoordinator
+from .device_registry import async_remove_legacy_lock_entities, async_sync_devices
 from .webhook_handler import async_handle_webhook
 
 type KentixConfigEntry = ConfigEntry["KentixRuntimeData"]
@@ -96,6 +97,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: KentixConfigEntry) -> bo
         name=entry.title,
         configuration_url=client.base_url,
     )
+
+    # Every Kentix object is automatically represented in the HA device registry,
+    # even when it currently has no optional sensor entity.
+    async_sync_devices(hass, entry, coordinator)
+    entry.async_on_unload(
+        coordinator.async_add_listener(
+            lambda: async_sync_devices(hass, entry, coordinator)
+        )
+    )
+
+    # v0.3 replaces the misleading lock entity with one stateless release button.
+    async_remove_legacy_lock_entities(hass, entry)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))

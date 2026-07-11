@@ -239,8 +239,8 @@ class KentixApiClient:
             "POST", self._routes.alarm_group_disarm.format(object_id=object_id)
         )
 
-    async def async_open_door_lock(self, object_id: str) -> None:
-        """Remotely open a DoorLock."""
+    async def async_release_door_lock(self, object_id: str) -> None:
+        """Briefly enable manual rotation of a DoorLock cylinder."""
         await self._request(
             "POST", self._routes.door_lock_open.format(object_id=object_id)
         )

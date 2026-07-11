@@ -63,13 +63,8 @@
       }
     },
     "button": {
-      "open_door": {
-        "name": "Tür öffnen"
-      }
-    },
-    "lock": {
-      "door_lock": {
-        "name": "Schloss"
+      "release_lock": {
+        "name": "Schloss freigeben"
       }
     },
     "sensor": {
@@ -97,12 +92,10 @@
     "step": {
       "init": {
         "data": {
-          "scan_interval": "Abfrageintervall",
-          "enable_door_control": "Türsteuerung aktivieren"
+          "scan_interval": "Abfrageintervall"
         },
         "data_description": {
-          "scan_interval": "Zeit zwischen den SmartAPI-Abfragen. Standard: 60 Sekunden. Für ältere Kentix-Hardware werden 60 Sekunden empfohlen; moderne SiteManager können in der Regel auch alle 30 Sekunden abgefragt werden. Kürzere Intervalle erhöhen die Last auf KentixONE.",
-          "enable_door_control": "Erstellt schreibende Schloss- und Türöffner-Entitäten. Nur mit einem Kentix-Benutzer mit minimal nötigen Rechten aktivieren."
+          "scan_interval": "Zeit zwischen den SmartAPI-Abfragen. Standard: 60 Sekunden. Für ältere Kentix-Hardware werden 60 Sekunden empfohlen; moderne SiteManager können in der Regel auch alle 30 Sekunden abgefragt werden. Kürzere Intervalle erhöhen die Last auf KentixONE."
         },
         "description": "KentixONE kann diese Integration sofort benachrichtigen. Lege in Kentix einen lokalen Webhook mit dieser Ziel-URL an: {webhook_url}\n\nDas Polling bleibt als zuverlässige Rückfallebene aktiv.",
         "title": "Kentix-Optionen"

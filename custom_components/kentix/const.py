@@ -11,11 +11,9 @@ CONF_API_TOKEN = "api_token"
 CONF_VERIFY_SSL = "verify_ssl"
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_WEBHOOK_ID = "webhook_id"
-CONF_ENABLE_DOOR_CONTROL = "enable_door_control"
 
 DEFAULT_VERIFY_SSL = False
 DEFAULT_SCAN_INTERVAL = 60
-DEFAULT_ENABLE_DOOR_CONTROL = False
 MIN_SCAN_INTERVAL = 5
 MAX_SCAN_INTERVAL = 3600
 
@@ -23,7 +21,6 @@ DEFAULT_UPDATE_INTERVAL = timedelta(seconds=DEFAULT_SCAN_INTERVAL)
 
 PLATFORMS = [
     Platform.ALARM_CONTROL_PANEL,
-    Platform.LOCK,
     Platform.BUTTON,
     Platform.BINARY_SENSOR,
     Platform.SENSOR,

@@ -73,3 +73,8 @@ def test_pytest_asyncio_mode_matches_home_assistant_core() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'asyncio_mode = "auto"' in pyproject
     assert 'asyncio_default_fixture_loop_scope = "function"' in pyproject
+
+
+def test_release_version_is_0_3_0() -> None:
+    manifest = json.loads((ROOT / "custom_components/kentix/manifest.json").read_text())
+    assert manifest["version"] == "0.3.0"

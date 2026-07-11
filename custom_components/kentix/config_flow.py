@@ -36,11 +36,9 @@ from .api import (
 )
 from .const import (
     CONF_API_TOKEN,
-    CONF_ENABLE_DOOR_CONTROL,
     CONF_SCAN_INTERVAL,
     CONF_VERIFY_SSL,
     CONF_WEBHOOK_ID,
-    DEFAULT_ENABLE_DOOR_CONTROL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
@@ -103,7 +101,6 @@ class KentixConfigFlow(ConfigFlow, domain=DOMAIN):
                     },
                     options={
                         CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
-                        CONF_ENABLE_DOOR_CONTROL: DEFAULT_ENABLE_DOOR_CONTROL,
                     },
                 )
 
@@ -222,9 +219,6 @@ class KentixOptionsFlow(OptionsFlow):
         current = self.config_entry.options.get(
             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
         )
-        door_control = self.config_entry.options.get(
-            CONF_ENABLE_DOOR_CONTROL, DEFAULT_ENABLE_DOOR_CONTROL
-        )
         webhook_id = self.config_entry.data.get(CONF_WEBHOOK_ID, "")
         webhook_url = ha_webhook.async_generate_path(webhook_id) if webhook_id else "-"
         if self.config_entry.state is ConfigEntryState.LOADED:
@@ -234,9 +228,6 @@ class KentixOptionsFlow(OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required(
-                        CONF_ENABLE_DOOR_CONTROL, default=door_control
-                    ): BooleanSelector(),
                     vol.Required(CONF_SCAN_INTERVAL, default=current): NumberSelector(
                         NumberSelectorConfig(
                             min=MIN_SCAN_INTERVAL,

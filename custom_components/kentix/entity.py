@@ -8,6 +8,11 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import KentixDataUpdateCoordinator
+from .naming import (
+    alarm_group_display_name,
+    alarm_group_parent_identifier,
+    door_lock_parent_identifier,
+)
 
 
 class KentixEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
@@ -31,13 +36,42 @@ class KentixEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
         self._object_id = object_id
         unique_type = entity_key or object_type
         self._attr_unique_id = f"{entry.entry_id}_{unique_type}_{object_id}"
-        physical_type = "alarm_group" if object_type == "alarm_group" else "door_lock"
+
+        if object_type == "alarm_group":
+            group = coordinator.data.alarm_groups.get(object_id)
+            device_name = (
+                alarm_group_display_name(group, coordinator.data.alarm_groups)
+                if group is not None
+                else object_name
+            )
+            via_device = (
+                alarm_group_parent_identifier(
+                    entry.entry_id, group, coordinator.data.alarm_groups
+                )
+                if group is not None
+                else (DOMAIN, entry.entry_id)
+            )
+            model = "Alarm Group"
+            physical_type = "alarm_group"
+        else:
+            door_lock = coordinator.data.door_locks.get(object_id)
+            device_name = door_lock.name if door_lock is not None else object_name
+            via_device = (
+                door_lock_parent_identifier(
+                    entry.entry_id, door_lock, coordinator.data.alarm_groups
+                )
+                if door_lock is not None
+                else (DOMAIN, entry.entry_id)
+            )
+            model = "DoorLock"
+            physical_type = "door_lock"
+
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{entry.entry_id}:{physical_type}:{object_id}")},
-            name=object_name,
+            name=device_name,
             manufacturer="Kentix",
-            model="Alarm Group" if physical_type == "alarm_group" else "DoorLock",
-            via_device=(DOMAIN, entry.entry_id),
+            model=model,
+            via_device=via_device,
             configuration_url=coordinator.client.base_url,
         )
 

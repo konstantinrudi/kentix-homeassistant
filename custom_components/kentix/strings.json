@@ -63,13 +63,8 @@
       }
     },
     "button": {
-      "open_door": {
-        "name": "Open door"
-      }
-    },
-    "lock": {
-      "door_lock": {
-        "name": "Lock"
+      "release_lock": {
+        "name": "Release lock"
       }
     },
     "sensor": {
@@ -97,12 +92,10 @@
     "step": {
       "init": {
         "data": {
-          "scan_interval": "Polling interval",
-          "enable_door_control": "Enable door control"
+          "scan_interval": "Polling interval"
         },
         "data_description": {
-          "scan_interval": "Time between SmartAPI requests. Default: 60 seconds. Use 60 seconds for older Kentix hardware; modern SiteManagers can usually use 30 seconds. Shorter intervals increase the load on KentixONE.",
-          "enable_door_control": "Creates writable lock and door-open entities. Enable only for a least-privilege Kentix user."
+          "scan_interval": "Time between SmartAPI requests. Default: 60 seconds. Use 60 seconds for older Kentix hardware; modern SiteManagers can usually use 30 seconds. Shorter intervals increase the load on KentixONE."
         },
         "description": "KentixONE can notify this integration immediately. Configure a local Kentix webhook with this target URL: {webhook_url}\n\nPolling remains enabled as a reliable fallback.",
         "title": "Kentix options"
