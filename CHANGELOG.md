@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.7
+
+- Fixed the GitHub Actions test dependency conflict by allowing
+  `pytest-homeassistant-custom-component` to install its matching pytest version.
+- Limited test and validation workflows to pushes to `main` and pull requests.
+  Release tag pushes now run only the release workflow.
+- Added workflow concurrency so superseded runs on the same ref are cancelled.
+
 ## 0.2.6 - 2026-07-12
 
 - Fix Home Assistant hassfest manifest key ordering
