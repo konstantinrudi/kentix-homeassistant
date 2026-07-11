@@ -16,7 +16,7 @@ MODULES = (
     "custom_components.kentix.models",
     "custom_components.kentix.const",
     "custom_components.kentix.coordinator",
-    "custom_components.kentix.webhook",
+    "custom_components.kentix.webhook_handler",
     "custom_components.kentix.config_flow",
     "custom_components.kentix.entity",
     "custom_components.kentix.discovery",

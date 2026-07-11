@@ -38,3 +38,17 @@ def test_german_polling_guidance_is_present() -> None:
     assert "Standard: 60 Sekunden" in description
     assert "ältere Kentix-Hardware" in description
     assert "30 Sekunden" in description
+
+
+def test_tls_verification_is_disabled_by_default() -> None:
+    assert _constant_value("DEFAULT_VERIFY_SSL") is False
+
+
+def test_brand_assets_are_in_hacs_and_integration_directories() -> None:
+    for relative in (
+        "brand/icon.png",
+        "custom_components/kentix/brand/icon.png",
+        "custom_components/kentix/brand/logo.png",
+        "assets/kentix-homeassistant.png",
+    ):
+        assert (ROOT / relative).is_file(), relative

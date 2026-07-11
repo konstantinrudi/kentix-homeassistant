@@ -21,7 +21,7 @@
         "data_description": {
           "api_token": "Persönliches SmartAPI-Bearer-Token aus dem KentixONE-Benutzerprofil.",
           "host": "Zum Beispiel https://192.168.1.50 oder kentix.example.local.",
-          "verify_ssl": "Nur bei einem vertrauenswürdigen lokalen System mit selbstsigniertem Zertifikat deaktivieren."
+          "verify_ssl": "Standardmäßig ausgeschaltet, da viele lokale KentixONE-Systeme ein selbstsigniertes Zertifikat verwenden. Aktiviere die Prüfung, wenn Home Assistant dem Kentix-Zertifikat vertraut."
         },
         "description": "Home Assistant direkt mit der lokalen KentixONE SmartAPI verbinden.",
         "title": "KentixONE verbinden"
@@ -40,7 +40,10 @@
           "verify_ssl": "TLS-Zertifikat prüfen"
         },
         "description": "Verbindungseinstellungen für KentixONE aktualisieren.",
-        "title": "KentixONE neu konfigurieren"
+        "title": "KentixONE neu konfigurieren",
+        "data_description": {
+          "verify_ssl": "Standardmäßig ausgeschaltet, da viele lokale KentixONE-Systeme ein selbstsigniertes Zertifikat verwenden. Aktiviere die Prüfung, wenn Home Assistant dem Kentix-Zertifikat vertraut."
+        }
       }
     }
   },

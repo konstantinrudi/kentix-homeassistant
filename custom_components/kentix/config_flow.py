@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.components import webhook
+from homeassistant.components import webhook as ha_webhook
 from homeassistant.config_entries import (
     ConfigEntryState,
     ConfigFlow,
@@ -99,7 +99,7 @@ class KentixConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_HOST: normalized_host,
                         CONF_API_TOKEN: user_input[CONF_API_TOKEN],
                         CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
-                        CONF_WEBHOOK_ID: webhook.async_generate_id(),
+                        CONF_WEBHOOK_ID: ha_webhook.async_generate_id(),
                     },
                     options={
                         CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
@@ -226,7 +226,7 @@ class KentixOptionsFlow(OptionsFlow):
             CONF_ENABLE_DOOR_CONTROL, DEFAULT_ENABLE_DOOR_CONTROL
         )
         webhook_id = self.config_entry.data.get(CONF_WEBHOOK_ID, "")
-        webhook_url = webhook.async_generate_path(webhook_id) if webhook_id else "-"
+        webhook_url = ha_webhook.async_generate_path(webhook_id) if webhook_id else "-"
         if self.config_entry.state is ConfigEntryState.LOADED:
             webhook_url = self.config_entry.runtime_data.webhook_url
 
