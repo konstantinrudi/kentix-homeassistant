@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.8 - 2026-07-12
+
+- Configure pytest-asyncio in `auto` mode, matching Home Assistant Core.
+- Set the default async fixture loop scope to `function`.
+- Fix CI failures caused by Home Assistant's async `enable_event_loop_debug` fixture under pytest 9.
+- Add regression coverage for the pytest asyncio configuration.
+
 ## 0.2.7
 
 - Fixed the GitHub Actions test dependency conflict by allowing

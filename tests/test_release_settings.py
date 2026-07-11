@@ -66,3 +66,10 @@ def test_repository_configuration_preserves_manifest_order() -> None:
     assert "sort_keys=True" not in script
     assert '"domain",' in script
     assert '"name",' in script
+
+
+def test_pytest_asyncio_mode_matches_home_assistant_core() -> None:
+    """Home Assistant test fixtures require pytest-asyncio auto mode."""
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'asyncio_mode = "auto"' in pyproject
+    assert 'asyncio_default_fixture_loop_scope = "function"' in pyproject
