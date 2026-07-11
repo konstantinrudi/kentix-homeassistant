@@ -25,8 +25,27 @@ def main() -> int:
         f"https://github.com/{owner}/kentix-homeassistant/issues"
     )
     manifest["codeowners"] = [f"@{owner}"]
+    preferred_order = (
+        "domain",
+        "name",
+        "codeowners",
+        "config_flow",
+        "dependencies",
+        "documentation",
+        "integration_type",
+        "iot_class",
+        "issue_tracker",
+        "requirements",
+        "version",
+    )
+    ordered_manifest = {
+        key: manifest[key] for key in preferred_order if key in manifest
+    }
+    ordered_manifest.update(
+        {key: manifest[key] for key in sorted(set(manifest) - set(ordered_manifest))}
+    )
     MANIFEST.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        json.dumps(ordered_manifest, indent=2) + "\n",
         encoding="utf-8",
     )
     print(f"Configured repository metadata for @{owner}")

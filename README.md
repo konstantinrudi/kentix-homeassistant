@@ -1,9 +1,5 @@
 # Kentix for Home Assistant
 
-<p align="center">
-  <img src="assets/kentix-homeassistant.png" alt="Kentix Home Assistant alarm and door-lock integration" width="420">
-</p>
-
 A local, HACS-compatible Home Assistant custom integration for KentixONE alarm groups and DoorLocks.
 
 > This project is community-maintained and is not affiliated with or endorsed by Kentix GmbH.
@@ -48,9 +44,9 @@ The setup flow asks for:
 
 - KentixONE URL or hostname
 - Personal SmartAPI bearer token
-- Whether Home Assistant should verify the TLS certificate; this is **off by default** for local KentixONE systems with self-signed certificates
+- Whether Home Assistant should verify the TLS certificate
 
-Use a dedicated Kentix user with only the permissions required for the desired alarm groups and doors. Enable TLS certificate verification when Home Assistant trusts the certificate presented by KentixONE.
+Use a dedicated Kentix user with only the permissions required for the desired alarm groups and doors.
 
 Door control is **disabled by default**. Enable it under the integration's options only after the read-only entities work and the Kentix account has intentionally limited remote-open permissions.
 
@@ -157,7 +153,7 @@ Kentix marks the currently documented DoorLock remote-open operation as deprecat
 ## Security and privacy
 
 - Keep Home Assistant and KentixONE on trusted networks.
-- TLS certificate verification is off by default for compatibility with local self-signed KentixONE certificates; enable it whenever Home Assistant trusts the certificate.
+- Keep TLS certificate verification enabled where possible.
 - Never expose the Home Assistant webhook path publicly.
 - Use a least-privilege Kentix API user.
 - Door control is opt-in.
@@ -177,11 +173,11 @@ python scripts/configure_repository.py YOUR_GITHUB_USERNAME
 
 This updates the documentation URL, issue tracker and Home Assistant `codeowners` field. Commit the changes and push them.
 
-To create release `0.2.5`:
+To create release `0.2.4`:
 
 ```bash
-git tag v0.2.5
-git push origin v0.2.5
+git tag v0.2.4
+git push origin v0.2.4
 ```
 
 The release workflow validates that the tag matches `manifest.json` and publishes a GitHub release. HACS installs the integration from the repository release using the standard `custom_components/kentix` structure.
@@ -207,4 +203,4 @@ The repository is an actively validated release candidate. Inventory and configu
 
 ## License
 
-MIT. The original project artwork in `assets/` and the brand images are distributed under the same MIT license.
+MIT

@@ -52,3 +52,17 @@ def test_brand_assets_are_in_hacs_and_integration_directories() -> None:
         "assets/kentix-homeassistant.png",
     ):
         assert (ROOT / relative).is_file(), relative
+
+
+def test_manifest_keys_follow_hassfest_order() -> None:
+    manifest = json.loads((ROOT / "custom_components/kentix/manifest.json").read_text())
+    keys = list(manifest)
+    assert keys[:2] == ["domain", "name"]
+    assert keys[2:] == sorted(keys[2:])
+
+
+def test_repository_configuration_preserves_manifest_order() -> None:
+    script = (ROOT / "scripts/configure_repository.py").read_text()
+    assert "sort_keys=True" not in script
+    assert '"domain",' in script
+    assert '"name",' in script

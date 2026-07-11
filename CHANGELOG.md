@@ -1,11 +1,17 @@
 # Changelog
 
+## 0.2.6 - 2026-07-12
+
+- Fix Home Assistant hassfest manifest key ordering
+- Preserve the required `domain`, `name`, then alphabetical manifest order when configuring repository metadata
+- Add regression coverage for manifest ordering
+- Document required GitHub repository description and topics for HACS validation
+
 ## 0.2.5 - 2026-07-12
 
-- Fix integration setup failure caused by the local `webhook.py` module shadowing Home Assistant's webhook component
-- Import Home Assistant webhook helpers explicitly and rename the local handler module
-- Change the default TLS certificate verification setting to disabled for new configurations
-- Add original alarm and door-lock artwork to the README, HACS brand directory and local Home Assistant brand directory
+- Fix the local webhook module name collision with Home Assistant's webhook component
+- Disable TLS certificate verification by default for new entries
+- Add original MIT-licensed repository and integration artwork
 - Update GitHub Actions to Node.js 24-compatible action versions
 
 ## 0.2.4 - 2026-07-12
