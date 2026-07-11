@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -19,6 +21,7 @@ from .api import (
     KentixAuthenticationError,
     KentixConnectionError,
     KentixPermissionError,
+    merge_alarm_group_runtime,
 )
 from .const import (
     ATTR_ENTRY_ID,
@@ -35,14 +38,15 @@ from .const import (
     EVENT_KENTIX_DOOR_CHANGED,
     EVENT_KENTIX_DOOR_OPENED,
     EVENT_KENTIX_WEBHOOK_RECEIVED,
+    INVENTORY_REFRESH_INTERVAL,
 )
-from .models import KentixData
+from .models import KentixAlarmGroup, KentixData, KentixDoorLock
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
-    """Coordinate polling and webhook-triggered refreshes of KentixONE."""
+    """Coordinate lightweight state polling and infrequent inventory refreshes."""
 
     def __init__(
         self,
@@ -68,21 +72,82 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
         self.entry = entry
         self.last_webhook_received: datetime | None = None
         self.webhook_count = 0
+        self.last_inventory_refresh: datetime | None = None
+        self._alarm_groups: dict[str, KentixAlarmGroup] = {}
+        self._door_locks: dict[str, KentixDoorLock] = {}
+        self._door_inventory_available = False
 
     async def _async_update_data(self) -> KentixData:
         previous = getattr(self, "data", None)
+        now = dt_util.utcnow()
+        refresh_inventory = (
+            self.last_inventory_refresh is None
+            or now - self.last_inventory_refresh >= INVENTORY_REFRESH_INTERVAL
+        )
+
+        system_values_task = asyncio.create_task(self.client.async_get_system_values())
+        inventory_task = (
+            asyncio.create_task(self._async_refresh_inventory(now))
+            if refresh_inventory
+            else None
+        )
+
         try:
-            current = await self.client.async_get_data()
+            system_values = await system_values_task
         except KentixAuthenticationError as err:
+            await _async_cancel(inventory_task)
             raise ConfigEntryAuthFailed from err
         except KentixConnectionError as err:
+            await _async_cancel(inventory_task)
             raise UpdateFailed(str(err)) from err
         except KentixApiError as err:
+            await _async_cancel(inventory_task)
             raise UpdateFailed(f"Kentix SmartAPI error: {err}") from err
 
+        if inventory_task is not None:
+            try:
+                await inventory_task
+            except KentixAuthenticationError as err:
+                raise ConfigEntryAuthFailed from err
+
+        current = KentixData(
+            alarm_groups=merge_alarm_group_runtime(self._alarm_groups, system_values),
+            door_locks=dict(self._door_locks),
+            alarm_groups_available=True,
+            door_locks_available=self._door_inventory_available,
+        )
         if previous is not None:
             self._fire_change_events(previous, current)
         return current
+
+    async def _async_refresh_inventory(self, refreshed_at: datetime) -> None:
+        """Refresh discovery and DoorLock battery data at most every four hours."""
+        # Mark the attempt immediately so a failed appliance is not hammered on every
+        # normal state poll. A reload can still be used to force a fresh discovery.
+        self.last_inventory_refresh = refreshed_at
+        alarm_result, door_result = await asyncio.gather(
+            self.client.async_get_alarm_group_inventory(),
+            self.client.async_get_door_locks(),
+            return_exceptions=True,
+        )
+
+        for result in (alarm_result, door_result):
+            if isinstance(result, KentixAuthenticationError):
+                raise result
+
+        if isinstance(alarm_result, Exception):
+            _LOGGER.warning(
+                "Kentix alarm-group inventory refresh failed: %s", alarm_result
+            )
+        else:
+            self._alarm_groups = alarm_result
+
+        if isinstance(door_result, Exception):
+            self._door_inventory_available = False
+            _LOGGER.warning("Kentix DoorLock inventory refresh failed: %s", door_result)
+        else:
+            self._door_locks = door_result
+            self._door_inventory_available = True
 
     def _fire_change_events(self, previous: KentixData, current: KentixData) -> None:
         """Fire stable Home Assistant events for meaningful Kentix changes."""
@@ -159,4 +224,15 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
             raise HomeAssistantError("Kentix is currently unreachable") from err
         except KentixApiError as err:
             raise HomeAssistantError(f"Kentix command failed: {err}") from err
+        # Command refreshes query only systemvalues unless the four-hour inventory
+        # interval is due.
         await self.async_request_refresh()
+
+
+async def _async_cancel(task: asyncio.Task[Any] | None) -> None:
+    """Cancel and drain a task created for a parallel inventory refresh."""
+    if task is None or task.done():
+        return
+    task.cancel()
+    with suppress(asyncio.CancelledError):
+        await task

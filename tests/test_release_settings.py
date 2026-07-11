@@ -75,6 +75,40 @@ def test_pytest_asyncio_mode_matches_home_assistant_core() -> None:
     assert 'asyncio_default_fixture_loop_scope = "function"' in pyproject
 
 
-def test_release_version_is_0_3_0() -> None:
+def test_release_version_is_0_3_1() -> None:
     manifest = json.loads((ROOT / "custom_components/kentix/manifest.json").read_text())
-    assert manifest["version"] == "0.3.0"
+    assert manifest["version"] == "0.3.1"
+
+
+def test_inventory_and_battery_refresh_are_limited_to_four_hours() -> None:
+    const_source = (ROOT / "custom_components/kentix/const.py").read_text()
+    assert "INVENTORY_REFRESH_INTERVAL = timedelta(hours=4)" in const_source
+
+    coordinator_source = (ROOT / "custom_components/kentix/coordinator.py").read_text()
+    assert (
+        "now - self.last_inventory_refresh >= INVENTORY_REFRESH_INTERVAL"
+        in coordinator_source
+    )
+    assert "self.client.async_get_system_values()" in coordinator_source
+
+
+def test_periodic_detail_requests_are_removed() -> None:
+    api_source = (ROOT / "custom_components/kentix/api.py").read_text()
+    assert "alarm_group_details" not in api_source
+    assert "door_lock_details" not in api_source
+    assert "_enrich_sparse_items" not in api_source
+
+
+def test_readme_documents_low_load_schedule_and_webhooks() -> None:
+    readme = (ROOT / "README.md").read_text()
+    assert "at most every four hours" in readme
+    assert "Automation → Webhooks" in readme
+    assert "Change of switching status" in readme
+    assert "Repository setup before publishing" not in readme
+    assert "YOUR_GITHUB_USERNAME" not in readme
+
+
+def test_setup_python_uses_node_24_action() -> None:
+    workflow = (ROOT / ".github/workflows/tests.yml").read_text()
+    assert "actions/setup-python@v6" in workflow
+    assert "actions/setup-python@v5" not in workflow

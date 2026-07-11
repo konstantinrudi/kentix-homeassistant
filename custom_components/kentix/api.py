@@ -42,7 +42,6 @@ class KentixRoutes:
         "/api/alarmgroups",
         "/api/alarmgroups/names",
     )
-    alarm_group_details: str = "/api/alarmgroups/{object_id}"
     system_values: str = "/api/systemvalues"
     alarm_group_arm: str = "/api/alarmgroups/{object_id}/arm"
     alarm_group_disarm: str = "/api/alarmgroups/{object_id}/disarm"
@@ -50,7 +49,6 @@ class KentixRoutes:
         "/api/doorlocks",
         "/api/doorlocks/names",
     )
-    door_lock_details: str = "/api/doorlocks/{object_id}"
     # Deprecated in KentixONE 8.6.3 but still documented. The method is kept
     # behind this adapter so a future replacement route is a one-line change.
     door_lock_open: str = "/api/doorlocks/{object_id}/open"
@@ -85,28 +83,15 @@ class KentixApiClient:
         return self._base_url
 
     async def async_validate_connection(self) -> None:
-        """Validate host and token using non-mutating endpoints."""
-        results = await asyncio.gather(
-            self._request_candidates("GET", self._routes.alarm_groups),
-            self._request_candidates("GET", self._routes.door_locks),
-            return_exceptions=True,
-        )
-        for result in results:
-            if isinstance(result, KentixAuthenticationError):
-                raise result
-        if any(not isinstance(result, Exception) for result in results):
-            return
-        if all(isinstance(result, KentixPermissionError) for result in results):
-            raise KentixPermissionError(
-                "The Kentix API user cannot access alarm groups or DoorLocks"
-            )
-        first_error = next(
-            result for result in results if isinstance(result, Exception)
-        )
-        raise first_error
+        """Validate host and token with the lightweight runtime endpoint."""
+        await self.async_get_system_values()
+
+    async def async_get_system_values(self) -> Any:
+        """Fetch the current KentixONE runtime values."""
+        return await self._request("GET", self._routes.system_values)
 
     async def async_get_data(self) -> KentixData:
-        """Fetch alarm groups and DoorLocks independently."""
+        """Fetch a complete snapshot. Coordinators should prefer split schedules."""
         alarm_result, door_result = await asyncio.gather(
             self.async_get_alarm_groups(),
             self.async_get_door_locks(),
@@ -130,102 +115,44 @@ class KentixApiClient:
             door_locks_available=not isinstance(door_result, Exception),
         )
 
-    async def async_get_alarm_groups(self) -> dict[str, KentixAlarmGroup]:
-        """Fetch alarm-group inventory and merge live states from systemvalues."""
-        groups = await self._async_get_collection(
+    async def async_get_alarm_group_inventory(
+        self,
+    ) -> dict[str, KentixAlarmGroup]:
+        """Fetch alarm-group inventory without per-object detail requests."""
+        return await self._async_get_collection(
             routes=self._routes.alarm_groups,
-            details_route=self._routes.alarm_group_details,
             normalizer=KentixAlarmGroup.from_payload,
-            state_keys={
-                "armed",
-                "is_armed",
-                "switching_status",
-                "switch_state",
-                "alarm_state",
-                "alarm_active",
-                "alarm_count",
-            },
         )
 
-        try:
-            system_values = await self._request("GET", self._routes.system_values)
-        except KentixAuthenticationError:
-            raise
-        except KentixApiError:
-            # Inventory/configuration remains useful when runtime values are not
-            # permitted or unavailable. The alarm entities stay in unknown state.
-            return groups
-
+    async def async_get_alarm_groups(self) -> dict[str, KentixAlarmGroup]:
+        """Fetch alarm-group inventory and merge live states from systemvalues."""
+        groups = await self.async_get_alarm_group_inventory()
+        system_values = await self.async_get_system_values()
         return merge_alarm_group_runtime(groups, system_values)
 
     async def async_get_door_locks(self) -> dict[str, KentixDoorLock]:
-        """Fetch and normalize all DoorLocks."""
+        """Fetch DoorLock inventory and battery data without detail requests."""
         return await self._async_get_collection(
             routes=self._routes.door_locks,
-            details_route=self._routes.door_lock_details,
             normalizer=KentixDoorLock.from_payload,
-            state_keys={
-                "open",
-                "is_open",
-                "door_open",
-                "locked",
-                "is_locked",
-                "lock_state",
-                "door_state",
-                "online",
-            },
         )
 
     async def _async_get_collection(
         self,
         *,
         routes: Sequence[str],
-        details_route: str,
         normalizer: Callable[[Mapping[str, Any]], T],
-        state_keys: set[str],
     ) -> dict[str, T]:
+        """Fetch and normalize a collection without N+1 detail requests."""
         payload = await self._request_collection_candidates(routes)
-        items = extract_items(payload)
-        items = await self._enrich_sparse_items(items, details_route, state_keys)
         normalized: dict[str, T] = {}
-        for item in items:
+        for item in extract_items(payload):
             try:
                 obj = normalizer(item)
             except (TypeError, ValueError):
                 continue
             normalized[obj.id] = obj
         return normalized
-
-    async def _enrich_sparse_items(
-        self,
-        items: list[dict[str, Any]],
-        details_route: str,
-        state_keys: set[str],
-    ) -> list[dict[str, Any]]:
-        """Fetch details only for list entries that do not contain state data."""
-        enriched = list(items)
-        task_positions: list[int] = []
-        tasks: list[asyncio.Task[Any]] = []
-        for position, item in enumerate(items):
-            object_id = object_identifier(item)
-            if object_id is None or state_keys.intersection(item):
-                continue
-            task_positions.append(position)
-            tasks.append(
-                asyncio.create_task(
-                    self._request("GET", details_route.format(object_id=object_id))
-                )
-            )
-
-        if not tasks:
-            return enriched
-
-        details = await asyncio.gather(*tasks, return_exceptions=True)
-        for position, detail in zip(task_positions, details, strict=True):
-            if isinstance(detail, Exception):
-                continue
-            enriched[position] = {**enriched[position], **extract_object(detail)}
-        return enriched
 
     async def async_arm_alarm_group(self, object_id: str) -> None:
         """Arm an alarm group."""

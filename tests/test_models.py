@@ -166,7 +166,7 @@ async def test_partial_permission_error_still_returns_other_collection() -> None
 
 
 @pytest.mark.asyncio
-async def test_sparse_alarm_group_list_is_enriched_from_details() -> None:
+async def test_sparse_alarm_group_list_does_not_request_details() -> None:
     client = object.__new__(KentixApiClient)
     client._routes = api.KentixRoutes()
     requested: list[str] = []
@@ -176,9 +176,8 @@ async def test_sparse_alarm_group_list_is_enriched_from_details() -> None:
 
     async def request(method, route):
         requested.append(route)
-        if route == "/api/systemvalues":
-            return {"alarmgroups": [{"name": "Office", "armed": True}]}
-        return {"data": {"id": "12"}}
+        assert route == "/api/systemvalues"
+        return {"alarmgroups": [{"name": "Office", "armed": True}]}
 
     client._request_collection_candidates = request_collection_candidates
     client._request = request
@@ -186,7 +185,7 @@ async def test_sparse_alarm_group_list_is_enriched_from_details() -> None:
     groups = await client.async_get_alarm_groups()
     assert groups["12"].name == "Office"
     assert groups["12"].armed is True
-    assert requested == ["/api/alarmgroups/12", "/api/systemvalues"]
+    assert requested == ["/api/systemvalues"]
 
 
 @pytest.mark.asyncio

@@ -40,6 +40,12 @@ async def async_get_config_entry_diagnostics(
                 else None
             ),
             "webhook_count": coordinator.webhook_count,
+            "last_inventory_refresh": (
+                coordinator.last_inventory_refresh.isoformat()
+                if coordinator.last_inventory_refresh
+                else None
+            ),
+            "inventory_refresh_interval_hours": 4,
             "alarm_groups_available": snapshot.alarm_groups_available,
             "door_locks_available": snapshot.door_locks_available,
             "alarm_group_count": len(snapshot.alarm_groups),

@@ -125,7 +125,7 @@ class KentixDoorConnectivity(KentixEntity, BinarySensorEntity):
 
 
 class KentixAlarmApiConnectivity(KentixHubEntity, BinarySensorEntity):
-    """Availability of the alarm-group SmartAPI collection."""
+    """Availability of the frequently polled system-values endpoint."""
 
     _attr_translation_key = "alarm_api_connectivity"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
@@ -141,7 +141,7 @@ class KentixAlarmApiConnectivity(KentixHubEntity, BinarySensorEntity):
 
 
 class KentixDoorApiConnectivity(KentixHubEntity, BinarySensorEntity):
-    """Availability of the DoorLock SmartAPI collection."""
+    """Result of the most recent infrequent DoorLock inventory refresh."""
 
     _attr_translation_key = "door_api_connectivity"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY

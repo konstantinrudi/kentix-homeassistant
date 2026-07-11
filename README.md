@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/kentix-homeassistant.png" alt="Kentix for Home Assistant" width="420">
+</p>
+
 # Kentix for Home Assistant
 
 A local, HACS-compatible Home Assistant custom integration for KentixONE alarm groups and DoorLocks.
@@ -6,31 +10,29 @@ A local, HACS-compatible Home Assistant custom integration for KentixONE alarm g
 
 ## Features
 
-- Automatic discovery of all alarm groups visible to the SmartAPI user, including Home Assistant device-registry entries
-- Native `alarm_control_panel` entities with arm/disarm actions; runtime states are exposed only when a Kentix runtime response provides them
-- Automatic discovery of DoorLocks as Home Assistant devices; door-contact entities are created only when a configured contact and runtime value are available
-- One accurate, stateless **Release lock** button per DoorLock; it briefly enables manual cylinder rotation instead of pretending that Kentix reports a locked/unlocked state
-- Dynamic creation of entities when Kentix objects are added later; no integration reload required
-- Local webhook endpoint for immediate refreshes, with polling as a reliable fallback
-- Home Assistant events for alarm changes, door changes, door opening and received Kentix webhooks
-- Battery, signal-strength, alarm-count and warning-count sensors when exposed by the appliance
-- Partial operation when the API account may access only alarm groups or only DoorLocks
-- UI configuration, options, reauthentication, reconfiguration, diagnostics, German and English translations
-- HACS, Hassfest, Ruff and pytest GitHub Actions
+- Automatic discovery of alarm groups and DoorLocks visible to the SmartAPI user
+- Native `alarm_control_panel` entities using the live `alarmgroups[].armed` values from `/api/systemvalues`
+- Arm and disarm actions for alarm groups
+- One stateless **Release lock** button per DoorLock, matching the Kentix behavior of briefly enabling manual cylinder rotation
+- Alarm-group hierarchy in the Home Assistant device registry: site → building → floor → area
+- Local KentixONE webhook support for fast state refreshes
+- Configurable state polling, with a conservative default of 60 seconds
+- Low-load inventory schedule: alarm groups, DoorLocks and DoorLock battery values are refreshed only at startup and then at most every four hours
+- UI configuration, reauthentication, diagnostics, and German/English translations
 
 ## Installation
 
-### HACS custom repository
+### HACS
 
-1. Publish this project as a public GitHub repository.
-2. In HACS, open **Custom repositories**.
-3. Enter the repository URL and select **Integration**.
-4. Download **Kentix** and restart Home Assistant.
+1. In HACS, open **Custom repositories**.
+2. Add this repository and select **Integration** as the category.
+3. Download **Kentix**.
+4. Restart Home Assistant.
 5. Open **Settings → Devices & services → Add integration → Kentix**.
 
 ### Manual installation
 
-Copy `custom_components/kentix` into your Home Assistant configuration directory as:
+Copy `custom_components/kentix` to:
 
 ```text
 <config>/custom_components/kentix
@@ -42,69 +44,136 @@ Restart Home Assistant and add the integration from **Settings → Devices & ser
 
 The setup flow asks for:
 
-- KentixONE URL or hostname
+- KentixONE URL or hostname, for example `https://192.168.1.50`
 - Personal SmartAPI bearer token
 - Whether Home Assistant should verify the TLS certificate
 
-Use a dedicated Kentix user with only the permissions required for the desired alarm groups and doors.
+TLS certificate verification is disabled by default because many local KentixONE appliances use a self-signed certificate. Enable it when Home Assistant trusts the certificate used by KentixONE.
 
-Door release controls are created automatically from the first setup. Use a dedicated Kentix account with intentionally limited DoorLock permissions.
+Use a dedicated Kentix user with access only to the required alarm groups and DoorLocks. Door release controls are created automatically when DoorLocks are discovered.
+
+## API request schedule
+
+The integration separates frequent state polling from infrequent discovery to reduce load on KentixONE.
+
+| Schedule | Requests | Purpose |
+|---|---|---|
+| Every configured polling interval | `GET /api/systemvalues` | Current alarm-group armed state |
+| At integration startup | `GET /api/alarmgroups` and `GET /api/doorlocks` | Initial device discovery, hierarchy, and DoorLock battery data |
+| At most every 4 hours | `GET /api/alarmgroups` and `GET /api/doorlocks` | Discover newly added objects and refresh DoorLock battery data |
+| After a Kentix webhook | `GET /api/systemvalues` | Immediate verification of the current alarm state |
+| When a user presses an action | One corresponding `POST` request | Arm, disarm, or release a DoorLock |
+
+The integration does **not** perform periodic per-object detail requests such as `/api/alarmgroups/{id}` or `/api/doorlocks/{id}`.
 
 ### Polling interval
 
-The polling interval is adjustable under **Settings → Devices & services → Kentix → Configure**.
+The `/api/systemvalues` interval is adjustable under **Settings → Devices & services → Kentix → Configure**.
 
-- The default is **60 seconds**.
-- For older Kentix hardware, **60 seconds is recommended**.
-- Modern SiteManagers can usually be polled every **30 seconds**.
-- Shorter intervals increase the request load on KentixONE.
-- A configured Kentix webhook can trigger immediate refreshes while polling remains the fallback.
+- Default: **60 seconds**
+- Older Kentix hardware: **60 seconds recommended**
+- Modern SiteManagers: **30 seconds is usually suitable**
+- Shorter intervals increase the load on KentixONE
 
-Existing installations keep their previously saved interval after an update. Change it manually in the integration options when needed.
+DoorLock discovery and DoorLock battery data are independent of this option and are refreshed at most once every four hours.
 
-## Webhook setup
+## KentixONE webhook setup
 
-The integration polls KentixONE. A local webhook can additionally trigger an immediate SmartAPI refresh.
+Polling works without a webhook. A webhook allows KentixONE to notify Home Assistant immediately after an event, so the integration can verify the new state without waiting for the next polling cycle.
 
-1. Open the Kentix integration in Home Assistant.
-2. Choose **Configure**.
+The webhook payload is only a trigger. Home Assistant does not trust the transmitted state; it reads `/api/systemvalues` after receiving the notification.
+
+### 1. Copy the Home Assistant webhook URL
+
+1. Open **Settings → Devices & services** in Home Assistant.
+2. Find **Kentix** and choose **Configure**.
 3. Copy the displayed webhook URL.
-4. Create a KentixONE HTTP webhook for the desired alarm/switching events and use that URL as the target.
 
-The receiver accepts `POST` and `PUT`, is registered as local-only, limits request bodies to 256 KiB and does not trust webhook state. It records only an optional event ID/type, then refreshes the available SmartAPI data.
+The URL must be reachable from the KentixONE appliance on the local network. Configure a usable Home Assistant internal URL under **Settings → System → Network** when Home Assistant displays only an unusable hostname or path.
 
-## Entities
+### 2. Create the webhook in KentixONE
 
-| Kentix data | Home Assistant entity |
+In the KentixONE web interface:
+
+1. Open **Automation → Webhooks**.
+2. Choose **Create webhook** / **Webhook anlegen**.
+3. Configure:
+   - **Active:** enabled
+   - **Name:** for example `Home Assistant refresh`
+   - **URL:** the URL copied from Home Assistant
+   - **HTTP method:** `POST`
+   - **Authentication:** none
+   - **Content type:** `application/json`
+   - **Payload:**
+
+```json
+{
+  "eventType": "kentix_state_changed"
+}
+```
+
+4. Save the webhook.
+5. Use KentixONE's **Test webhook** function. A successful request should return an HTTP status in the `2xx` range.
+
+The random webhook ID in the URL acts as the secret. Do not publish or expose the URL outside the trusted local network.
+
+### 3. Assign the webhook to alarm-group events
+
+A system-wide webhook does nothing until it is assigned to events.
+
+1. Open the relevant alarm group in KentixONE.
+2. Open its **Webhooks** section.
+3. Assign the Home Assistant webhook to **Change of switching status (arming or disarming)** / **Änderung des Schaltstatus (Scharf- oder Unscharfschaltung)**.
+4. Repeat this for every alarm group that should notify Home Assistant.
+
+Depending on the desired automations, the same webhook can additionally be assigned to events such as **All alarms**, **System messages**, **After arming**, or **After disarming**. A cyclical Kentix webhook is not required because Home Assistant polling remains active as a fallback.
+
+KentixONE documentation:
+
+- [Configure webhooks](https://docs.kentix.com/kentixone/guides/how-to/first-steps/webhooks-anlegen/)
+- [Webhook reference](https://docs.kentix.com/kentixone/en/forms/webhooks/)
+- [Alarm-group webhook events](https://docs.kentix.com/kentixone/en/forms/alarmgroup/AlarmgruppeMaske/)
+
+## Entities and devices
+
+| Kentix data/action | Home Assistant representation |
 |---|---|
 | Alarm group | `alarm_control_panel` |
-| DoorLock manual-rotation release | stateless `button` |
-| Door contact | `binary_sensor` |
-| DoorLock reachability | diagnostic `binary_sensor` |
-| Alarm-group/DoorLock API availability | diagnostic `binary_sensor` |
-| Active alarms/warnings | disabled-by-default `sensor` |
-| DoorLock battery/RSSI | diagnostic `sensor` |
-| Webhook count/last reception | disabled-by-default diagnostic `sensor` |
+| DoorLock manual-rotation release | stateless `button` named **Release lock** / **Schloss freigeben** |
+| DoorLock battery | diagnostic `sensor`, when supplied by KentixONE |
+| Webhook statistics | disabled-by-default diagnostic sensors |
 
-Alarm groups and DoorLocks are always registered as Home Assistant devices when they are visible to the SmartAPI user. Optional sensor entities are created only when their corresponding values are available in the API response.
-
-Alarm-group devices follow the Kentix hierarchy and are named automatically:
+Alarm groups are named according to their hierarchy:
 
 - `Standort - <Name>` for top-level groups
 - `Gebäude - <Name>` for their children
 - `Etage - <Name>` for the next level
-- `Bereich - <Name>` for deeper nested groups
+- `Bereich - <Name>` for deeper levels
 
-Child devices are linked to their parent through Home Assistant's device registry. New Kentix objects discovered during later polling are added without reloading the integration.
+Child devices are linked to their parent in the Home Assistant device registry. Newly added alarm groups and DoorLocks are discovered during the next four-hour inventory refresh or after reloading the integration.
 
-## Events
+## DoorLock behavior
 
-The integration emits these Home Assistant events:
+Kentix does not normally report a persistent locked/unlocked state for this use case. The integration therefore exposes one stateless button instead of a Home Assistant lock entity.
+
+Pressing **Release lock** briefly enables the user to rotate the cylinder manually. It does not claim that the door is locked or unlocked. Restrict the SmartAPI user's DoorLock permissions and add suitable confirmation, presence, and authorization conditions to automations controlling physical access.
+
+Example automation action:
+
+```yaml
+sequence:
+  - action: button.press
+    target:
+      entity_id: button.front_door_release_lock
+```
+
+## Home Assistant events
+
+The integration emits:
 
 - `kentix_alarm_changed`
-- `kentix_door_changed`
-- `kentix_door_opened`
 - `kentix_webhook_received`
+- `kentix_door_changed` and `kentix_door_opened` only when a future/compatible Kentix runtime response actually provides door-state data
 
 Example:
 
@@ -115,99 +184,31 @@ triggers:
     event_type: kentix_alarm_changed
 conditions:
   - condition: template
-    value_template: "{{ trigger.event.data.new_state == 'triggered' }}"
+    value_template: "{{ trigger.event.data.new_state == 'armed' }}"
 actions:
   - action: notify.notify
     data:
-      title: Kentix alarm
+      title: Kentix alarm group
       message: >-
         {{ trigger.event.data.object_name }} changed from
         {{ trigger.event.data.previous_state }} to
         {{ trigger.event.data.new_state }}.
 ```
 
-Releasing a DoorLock from an automation:
-
-```yaml
-sequence:
-  - action: button.press
-    target:
-      entity_id: button.front_door_release_lock
-```
-
-The action does not claim to lock, unlock or report a persistent state. It briefly enables the user to rotate the cylinder manually. Because this controls physical access, add your own confirmation, presence and authorization conditions around such an automation.
-
-## SmartAPI adapter
-
-The integration currently targets these documented route families and falls back from collection routes to the older `/names` variants where necessary:
-
-```text
-GET  /api/alarmgroups
-GET  /api/alarmgroups/names
-GET  /api/alarmgroups/{id}
-POST /api/alarmgroups/{id}/arm
-POST /api/alarmgroups/{id}/disarm
-
-GET  /api/doorlocks
-GET  /api/doorlocks/names
-GET  /api/doorlocks/{id}
-POST /api/doorlocks/{id}/open
-```
-
-Response normalization accepts common top-level envelopes, nested status objects and camelCase/PascalCase variations. Sparse list responses are enriched through per-object detail requests with bounded concurrency. Real KentixONE validation shows that the list and detail routes above primarily provide inventory and configuration. They must not be interpreted as proof of current armed, alarm, door-contact or reachability state. The live alarm-group state is read from `GET /api/systemvalues` and mapped from `alarmgroups[].armed`. `GET /api/state/cell` is not used for alarm state.
-
-Kentix marks the currently documented DoorLock remote-open operation as deprecated in newer KentixONE documentation. It is isolated in `KentixRoutes`, so a successor endpoint can be changed without touching the entity layer.
-
 ## Security and privacy
 
 - Keep Home Assistant and KentixONE on trusted networks.
-- Keep TLS certificate verification enabled where possible.
-- Never expose the Home Assistant webhook path publicly.
+- Enable TLS verification when the KentixONE certificate is trusted.
+- Never expose the Home Assistant webhook URL publicly.
 - Use a least-privilege Kentix API user.
-- Door release is available by default; restrict the Kentix API user to the required DoorLocks.
-- Tokens are redacted from diagnostics.
-- Raw Kentix payloads and access records are not included in diagnostics.
+- Tokens, hosts, object names, IDs, and raw Kentix payloads are excluded or redacted from diagnostics.
 - Webhook payloads are not persisted and are not treated as authoritative state.
 
 Report security issues privately as described in [SECURITY.md](SECURITY.md).
 
-## Repository setup before publishing
+## Compatibility
 
-No Kentix installation data is required. The only repository-specific value is the GitHub owner. After creating the repository, run:
-
-```bash
-python scripts/configure_repository.py YOUR_GITHUB_USERNAME
-```
-
-This updates the documentation URL, issue tracker and Home Assistant `codeowners` field. Commit the changes and push them.
-
-To create release `0.3.0`:
-
-```bash
-git tag v0.3.0
-git push origin v0.3.0
-```
-
-The release workflow validates that the tag matches `manifest.json` and publishes a GitHub release. HACS installs the integration from the repository release using the standard `custom_components/kentix` structure.
-
-## Development
-
-Home Assistant 2026.7 uses Python 3.14. The included CI uses that runtime.
-
-```bash
-python -m pip install -r requirements_test.txt
-ruff check .
-ruff format --check .
-python -m compileall custom_components/kentix
-python scripts/check_imports.py
-pytest
-```
-
-See [development notes](docs/DEVELOPMENT.md) and the [SmartAPI compatibility notes](docs/KENTIX_API.md).
-
-## Compatibility status
-
-The repository is an actively validated release candidate. Inventory and configuration payloads are covered by real KentixONE samples and automated checks. Runtime alarm-group armed state is validated through `/api/systemvalues`; optional alarm, transition, door-contact and reachability fields remain dependent on what the installed Kentix system exposes. Unsupported or absent values are intentionally reported as unknown rather than guessed.
+The integration uses `/api/systemvalues` for live alarm-group state and the alarm-group/DoorLock collection routes for infrequent inventory discovery. Unsupported or absent runtime values are reported as unknown instead of being guessed.
 
 ## License
 

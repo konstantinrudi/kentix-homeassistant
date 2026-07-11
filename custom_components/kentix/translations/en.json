@@ -9,7 +9,7 @@
       "cannot_connect": "Failed to connect to KentixONE. Check the URL, network access, TLS setting, and SmartAPI availability.",
       "invalid_auth": "The API token is invalid or does not have sufficient permissions.",
       "unknown": "An unexpected error occurred.",
-      "insufficient_permissions": "The API token is valid, but the Kentix user cannot access alarm groups or DoorLocks."
+      "insufficient_permissions": "The API token is valid, but the Kentix user cannot access the system values required for alarm state."
     },
     "step": {
       "user": {
@@ -56,10 +56,10 @@
         "name": "Door contact"
       },
       "alarm_api_connectivity": {
-        "name": "Alarm group API"
+        "name": "System values API"
       },
       "door_api_connectivity": {
-        "name": "DoorLock API"
+        "name": "DoorLock inventory"
       }
     },
     "button": {
@@ -95,9 +95,9 @@
           "scan_interval": "Polling interval"
         },
         "data_description": {
-          "scan_interval": "Time between SmartAPI requests. Default: 60 seconds. Use 60 seconds for older Kentix hardware; modern SiteManagers can usually use 30 seconds. Shorter intervals increase the load on KentixONE."
+          "scan_interval": "Time between GET /api/systemvalues requests. Default: 60 seconds. Use 60 seconds for older Kentix hardware; modern SiteManagers can usually use 30 seconds. Alarm-group/DoorLock discovery and DoorLock battery data are refreshed separately at most every four hours."
         },
-        "description": "KentixONE can notify this integration immediately. Configure a local Kentix webhook with this target URL: {webhook_url}\n\nPolling remains enabled as a reliable fallback.",
+        "description": "KentixONE can notify this integration immediately. Configure a local Kentix webhook with this target URL: {webhook_url}\n\nNormal polling requests only /api/systemvalues. Alarm-group/DoorLock discovery and DoorLock battery data are refreshed at most every four hours.",
         "title": "Kentix options"
       }
     }

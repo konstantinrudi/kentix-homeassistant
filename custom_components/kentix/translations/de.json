@@ -9,7 +9,7 @@
       "cannot_connect": "Verbindung zu KentixONE fehlgeschlagen. Prüfe URL, Netzwerkzugriff, TLS-Einstellung und SmartAPI-Verfügbarkeit.",
       "invalid_auth": "Das API-Token ist ungültig oder besitzt nicht genügend Berechtigungen.",
       "unknown": "Ein unerwarteter Fehler ist aufgetreten.",
-      "insufficient_permissions": "Das API-Token ist gültig, aber der Kentix-Benutzer darf weder Alarmgruppen noch DoorLocks lesen."
+      "insufficient_permissions": "Das API-Token ist gültig, aber der Kentix-Benutzer darf die für den Alarmzustand erforderlichen Systemwerte nicht lesen."
     },
     "step": {
       "user": {
@@ -56,10 +56,10 @@
         "name": "Türkontakt"
       },
       "alarm_api_connectivity": {
-        "name": "Alarmgruppen-API"
+        "name": "Systemwerte-API"
       },
       "door_api_connectivity": {
-        "name": "DoorLock-API"
+        "name": "DoorLock-Inventar"
       }
     },
     "button": {
@@ -95,9 +95,9 @@
           "scan_interval": "Abfrageintervall"
         },
         "data_description": {
-          "scan_interval": "Zeit zwischen den SmartAPI-Abfragen. Standard: 60 Sekunden. Für ältere Kentix-Hardware werden 60 Sekunden empfohlen; moderne SiteManager können in der Regel auch alle 30 Sekunden abgefragt werden. Kürzere Intervalle erhöhen die Last auf KentixONE."
+          "scan_interval": "Zeit zwischen den Abfragen von GET /api/systemvalues. Standard: 60 Sekunden. Für ältere Kentix-Hardware werden 60 Sekunden empfohlen; moderne SiteManager können in der Regel auch alle 30 Sekunden abgefragt werden. Alarmgruppen-/DoorLock-Erkennung und DoorLock-Batteriedaten werden getrennt höchstens alle vier Stunden aktualisiert."
         },
-        "description": "KentixONE kann diese Integration sofort benachrichtigen. Lege in Kentix einen lokalen Webhook mit dieser Ziel-URL an: {webhook_url}\n\nDas Polling bleibt als zuverlässige Rückfallebene aktiv.",
+        "description": "KentixONE kann diese Integration sofort benachrichtigen. Lege in Kentix einen lokalen Webhook mit dieser Ziel-URL an: {webhook_url}\n\nDas normale Polling fragt nur /api/systemvalues ab. Alarmgruppen-/DoorLock-Erkennung und DoorLock-Batteriedaten werden höchstens alle vier Stunden aktualisiert.",
         "title": "Kentix-Optionen"
       }
     }
