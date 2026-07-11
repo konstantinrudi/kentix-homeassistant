@@ -1,0 +1,17 @@
+{
+  "codeowners": [
+    "@konstantinrudi"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "webhook"
+  ],
+  "documentation": "https://github.com/konstantinrudi/kentix-homeassistant",
+  "domain": "kentix",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/konstantinrudi/kentix-homeassistant/issues",
+  "name": "Kentix",
+  "requirements": [],
+  "version": "0.2.4"
+}

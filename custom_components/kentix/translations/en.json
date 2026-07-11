@@ -1,0 +1,109 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "This KentixONE system is already configured.",
+      "reauth_successful": "Authentication was updated successfully.",
+      "reconfigure_successful": "The KentixONE connection was updated successfully."
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to KentixONE. Check the URL, network access, TLS setting, and SmartAPI availability.",
+      "invalid_auth": "The API token is invalid or does not have sufficient permissions.",
+      "unknown": "An unexpected error occurred.",
+      "insufficient_permissions": "The API token is valid, but the Kentix user cannot access alarm groups or DoorLocks."
+    },
+    "step": {
+      "user": {
+        "data": {
+          "api_token": "API token",
+          "host": "KentixONE URL or host",
+          "verify_ssl": "Verify TLS certificate"
+        },
+        "data_description": {
+          "api_token": "Personal SmartAPI Bearer Token from the KentixONE user profile.",
+          "host": "For example https://192.168.1.50 or kentix.example.local.",
+          "verify_ssl": "Disable only for a trusted local system using a self-signed certificate."
+        },
+        "description": "Connect Home Assistant directly to the local KentixONE SmartAPI.",
+        "title": "Connect KentixONE"
+      },
+      "reauth_confirm": {
+        "data": {
+          "api_token": "New API token"
+        },
+        "description": "The KentixONE API token is no longer accepted. Enter a valid token.",
+        "title": "Reauthenticate KentixONE"
+      },
+      "reconfigure": {
+        "data": {
+          "api_token": "API token",
+          "host": "KentixONE URL or host",
+          "verify_ssl": "Verify TLS certificate"
+        },
+        "description": "Update the KentixONE connection settings.",
+        "title": "Reconfigure KentixONE"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "connectivity": {
+        "name": "Connectivity"
+      },
+      "door_contact": {
+        "name": "Door contact"
+      },
+      "alarm_api_connectivity": {
+        "name": "Alarm group API"
+      },
+      "door_api_connectivity": {
+        "name": "DoorLock API"
+      }
+    },
+    "button": {
+      "open_door": {
+        "name": "Open door"
+      }
+    },
+    "lock": {
+      "door_lock": {
+        "name": "Lock"
+      }
+    },
+    "sensor": {
+      "alarm_count": {
+        "name": "Active alarms"
+      },
+      "battery": {
+        "name": "Battery"
+      },
+      "signal_strength": {
+        "name": "Signal strength"
+      },
+      "warning_count": {
+        "name": "Active warnings"
+      },
+      "webhook_count": {
+        "name": "Received webhooks"
+      },
+      "last_webhook": {
+        "name": "Last webhook"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Polling interval",
+          "enable_door_control": "Enable door control"
+        },
+        "data_description": {
+          "scan_interval": "Time between SmartAPI requests. Default: 60 seconds. Use 60 seconds for older Kentix hardware; modern SiteManagers can usually use 30 seconds. Shorter intervals increase the load on KentixONE.",
+          "enable_door_control": "Creates writable lock and door-open entities. Enable only for a least-privilege Kentix user."
+        },
+        "description": "KentixONE can notify this integration immediately. Configure a local Kentix webhook with this target URL: {webhook_url}\n\nPolling remains enabled as a reliable fallback.",
+        "title": "Kentix options"
+      }
+    }
+  }
+}

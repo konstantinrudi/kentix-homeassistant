@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a reproducible integration problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include API tokens, personal access data, card identifiers, real door/site names, camera URLs or private network details.
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: Kentix integration version
+    validations:
+      required: true
+  - type: input
+    id: kentix_version
+    attributes:
+      label: KentixONE version
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem
+      description: Describe expected and actual behavior with sanitized names.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics/log excerpt
+      description: Attach Home Assistant diagnostics or a redacted log excerpt. Verify it contains no sensitive information.
