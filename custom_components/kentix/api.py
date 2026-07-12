@@ -169,7 +169,7 @@ class KentixApiClient:
     async def async_release_door_lock(self, object_id: str) -> None:
         """Briefly enable manual rotation of a DoorLock cylinder."""
         await self._request(
-            "POST", self._routes.door_lock_open.format(object_id=object_id)
+            "PUT", self._routes.door_lock_open.format(object_id=object_id)
         )
 
     async def _request_collection_candidates(self, routes: Sequence[str]) -> Any:

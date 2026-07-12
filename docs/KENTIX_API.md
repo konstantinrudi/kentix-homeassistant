@@ -37,7 +37,7 @@ User actions use the corresponding command endpoint:
 ```text
 POST /api/alarmgroups/{id}/arm
 POST /api/alarmgroups/{id}/disarm
-POST /api/doorlocks/{id}/open
+PUT /api/doorlocks/{id}/open
 ```
 
 The DoorLock command is represented as a stateless button because the tested Kentix configuration releases manual cylinder rotation rather than reporting a persistent lock state.

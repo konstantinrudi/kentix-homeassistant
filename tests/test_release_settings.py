@@ -75,9 +75,9 @@ def test_pytest_asyncio_mode_matches_home_assistant_core() -> None:
     assert 'asyncio_default_fixture_loop_scope = "function"' in pyproject
 
 
-def test_release_version_is_0_3_1() -> None:
+def test_release_version_is_0_3_2() -> None:
     manifest = json.loads((ROOT / "custom_components/kentix/manifest.json").read_text())
-    assert manifest["version"] == "0.3.1"
+    assert manifest["version"] == "0.3.2"
 
 
 def test_inventory_and_battery_refresh_are_limited_to_four_hours() -> None:
@@ -101,14 +101,33 @@ def test_periodic_detail_requests_are_removed() -> None:
 
 def test_readme_documents_low_load_schedule_and_webhooks() -> None:
     readme = (ROOT / "README.md").read_text()
-    assert "at most every four hours" in readme
+    assert "at most every **4 hours**" in readme
     assert "Automation → Webhooks" in readme
     assert "Change of switching status" in readme
     assert "Repository setup before publishing" not in readme
     assert "YOUR_GITHUB_USERNAME" not in readme
+    assert "python scripts/configure_repository.py" not in readme
+    assert "pytest" not in readme
+    assert "release candidate" not in readme
 
 
 def test_setup_python_uses_node_24_action() -> None:
     workflow = (ROOT / ".github/workflows/tests.yml").read_text()
     assert "actions/setup-python@v6" in workflow
     assert "actions/setup-python@v5" not in workflow
+
+
+def test_doorlock_release_uses_put() -> None:
+    api_source = (ROOT / "custom_components/kentix/api.py").read_text()
+    assert '"PUT", self._routes.door_lock_open' in api_source
+    assert '"POST", self._routes.door_lock_open' not in api_source
+
+
+def test_temporary_upgrade_documents_are_not_shipped() -> None:
+    assert not list((ROOT / "docs").glob("UPGRADE_*.md"))
+
+
+def test_readme_shows_project_artwork() -> None:
+    readme = (ROOT / "README.md").read_text()
+    assert 'src="assets/kentix-homeassistant.png"' in readme
+    assert "PUT /api/doorlocks/{id}/open" in readme

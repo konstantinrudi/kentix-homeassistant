@@ -370,3 +370,19 @@ async def test_alarm_groups_merge_systemvalues_runtime() -> None:
     client._request = request
     groups = await client.async_get_alarm_groups()
     assert groups["2"].armed is True
+
+
+@pytest.mark.asyncio
+async def test_release_door_lock_uses_put_request() -> None:
+    client = object.__new__(KentixApiClient)
+    client._routes = api.KentixRoutes()
+    calls: list[tuple[str, str]] = []
+
+    async def request(method, route):
+        calls.append((method, route))
+        return None
+
+    client._request = request
+    await client.async_release_door_lock("11")
+
+    assert calls == [("PUT", "/api/doorlocks/11/open")]
