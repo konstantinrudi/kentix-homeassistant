@@ -150,9 +150,7 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
             self._door_inventory_available = bool(self._door_locks)
             _LOGGER.warning("Kentix DoorLock inventory refresh failed: %s", door_result)
         else:
-            self._door_locks = _merge_door_lock_inventory(
-                self._door_locks, door_result
-            )
+            self._door_locks = _merge_door_lock_inventory(self._door_locks, door_result)
             self._door_inventory_available = True
 
     def _fire_change_events(self, previous: KentixData, current: KentixData) -> None:

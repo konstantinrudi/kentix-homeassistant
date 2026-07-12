@@ -57,6 +57,7 @@ async def test_normal_poll_only_reads_systemvalues() -> None:
     assert client.door_inventory_calls == 1
     assert second.alarm_groups["1"].armed is False
 
+
 @pytest.mark.asyncio
 async def test_door_battery_keeps_last_successful_value_when_omitted() -> None:
     coordinator = object.__new__(KentixDataUpdateCoordinator)
