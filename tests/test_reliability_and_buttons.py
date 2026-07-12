@@ -14,4 +14,5 @@ def test_maintenance_buttons_are_translated() -> None:
     data = json.loads(Path("custom_components/kentix/translations/de.json").read_text())
     buttons = data["entity"]["button"]
     assert "repair_webhook" in buttons
-    assert "refresh_data" in buttons
+    assert "refresh_states" in buttons
+    assert "rediscover_devices" in buttons

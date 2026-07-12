@@ -25,7 +25,8 @@ async def async_setup_entry(
     async_add_entities(
         [
             KentixRepairWebhookButton(coordinator, entry),
-            KentixRefreshDataButton(coordinator, entry),
+            KentixRefreshStatesButton(coordinator, entry),
+            KentixRediscoverDevicesButton(coordinator, entry),
         ]
     )
     async_setup_dynamic_entities(
@@ -78,16 +79,32 @@ class KentixRepairWebhookButton(KentixHubEntity, ButtonEntity):
         self.coordinator.async_update_listeners()
 
 
-class KentixRefreshDataButton(KentixHubEntity, ButtonEntity):
-    """Refresh system values and the complete Kentix inventory now."""
+class KentixRefreshStatesButton(KentixHubEntity, ButtonEntity):
+    """Refresh the shared Kentix runtime values now."""
 
-    _attr_translation_key = "refresh_data"
+    _attr_translation_key = "refresh_states"
     _attr_icon = "mdi:refresh"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, coordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
+        # Preserve the existing unique ID across the clearer rename.
         self._attr_unique_id = f"{entry.entry_id}_refresh_data"
 
     async def async_press(self) -> None:
-        await self.coordinator.async_force_full_refresh()
+        await self.coordinator.async_refresh_states()
+
+
+class KentixRediscoverDevicesButton(KentixHubEntity, ButtonEntity):
+    """Force Kentix inventory discovery instead of waiting four hours."""
+
+    _attr_translation_key = "rediscover_devices"
+    _attr_icon = "mdi:database-search"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_rediscover_devices"
+
+    async def async_press(self) -> None:
+        await self.coordinator.async_rediscover_devices()

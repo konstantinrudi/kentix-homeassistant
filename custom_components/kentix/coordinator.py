@@ -50,6 +50,7 @@ from .models import (
     extract_runtime_devices,
     merge_runtime_devices,
 )
+from .naming import sort_alarm_groups
 from .webhook_payload import parse_managed_webhook
 
 _LOGGER = logging.getLogger(__name__)
@@ -106,6 +107,14 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
         self.last_inventory_refresh = None
         await self.async_request_refresh()
 
+    async def async_refresh_states(self) -> None:
+        """Refresh only the shared runtime values endpoint now."""
+        await self.async_request_refresh()
+
+    async def async_rediscover_devices(self) -> None:
+        """Refresh runtime values and all infrequent inventory collections now."""
+        await self.async_force_full_refresh()
+
     async def _async_update_data(self) -> KentixData:
         previous = getattr(self, "data", None)
         now = dt_util.utcnow()
@@ -152,7 +161,9 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
         self._units = units or self._units
         door_locks = _merge_door_lock_runtime(self._door_locks, self._runtime_devices)
         current = KentixData(
-            alarm_groups=merge_alarm_group_runtime(self._alarm_groups, system_values),
+            alarm_groups=sort_alarm_groups(
+                merge_alarm_group_runtime(self._alarm_groups, system_values)
+            ),
             door_locks=door_locks,
             devices=dict(self._runtime_devices),
             units=dict(self._units),
@@ -307,7 +318,7 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
 
         groups = dict(current_data.alarm_groups)
         groups[update.group_id] = updated_group
-        updated_data = replace(current_data, alarm_groups=groups)
+        updated_data = replace(current_data, alarm_groups=sort_alarm_groups(groups))
         self.last_valid_webhook_received = dt_util.utcnow()
         self.last_webhook_error = None
         self._fire_change_events(current_data, updated_data)

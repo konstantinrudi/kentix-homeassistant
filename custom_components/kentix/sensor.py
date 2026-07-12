@@ -18,6 +18,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .discovery import async_setup_dynamic_entities
 from .entity import KentixEntity, KentixHubEntity
 from .models import KentixAlarmGroup, KentixDoorLock, KentixRuntimeDevice
+from .versioning import detect_kentixone_version, detect_smartapi_version
 from .visibility import runtime_device_visible
 
 PARALLEL_UPDATES = 0
@@ -36,6 +37,9 @@ async def async_setup_entry(
             KentixLastWebhook(coordinator, entry),
             KentixLastValidWebhook(coordinator, entry),
             KentixInvalidWebhookCount(coordinator, entry),
+            KentixHealthStatus(coordinator, entry),
+            KentixOneVersion(coordinator, entry),
+            KentixSmartApiVersion(coordinator, entry),
         ]
     )
 
@@ -369,3 +373,101 @@ class KentixInvalidWebhookCount(KentixHubEntity, SensorEntity):
     @property
     def native_value(self) -> int:
         return self.coordinator.invalid_webhook_count
+
+
+class KentixHealthStatus(KentixHubEntity, SensorEntity):
+    """Central diagnostic overview for this Kentix config entry."""
+
+    _attr_translation_key = "health_status"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:heart-pulse"
+
+    def __init__(self, coordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_health_status"
+
+    @property
+    def native_value(self) -> str:
+        manager = self._entry.runtime_data.webhook_manager
+        if not self.coordinator.integration_available:
+            return "unavailable"
+        if self.coordinator.consecutive_update_failures or (
+            manager.enabled and not manager.configured
+        ):
+            return "degraded"
+        return "healthy"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        data = self.coordinator.data
+        manager = self._entry.runtime_data.webhook_manager
+        return {
+            "kentixone_version": detect_kentixone_version(data.devices),
+            "smartapi_version": detect_smartapi_version(data.devices),
+            "smartapi_version_source": "derived_from_kentixone_version",
+            "systemvalues_available": data.alarm_groups_available,
+            "doorlock_inventory_available": data.door_locks_available,
+            "managed_webhook_enabled": manager.enabled,
+            "managed_webhook_configured": manager.configured,
+            "managed_webhook_error": manager.last_error,
+            "last_successful_update": (
+                self.coordinator.last_successful_update.isoformat()
+                if self.coordinator.last_successful_update
+                else None
+            ),
+            "last_webhook_received": (
+                self.coordinator.last_webhook_received.isoformat()
+                if self.coordinator.last_webhook_received
+                else None
+            ),
+            "last_valid_state_webhook": (
+                self.coordinator.last_valid_webhook_received.isoformat()
+                if self.coordinator.last_valid_webhook_received
+                else None
+            ),
+            "consecutive_api_failures": self.coordinator.consecutive_update_failures,
+            "alarm_groups": len(data.alarm_groups),
+            "door_locks": len(data.door_locks),
+            "runtime_devices": len(data.devices),
+            "update_interval_seconds": (
+                int(self.coordinator.update_interval.total_seconds())
+                if self.coordinator.update_interval
+                else None
+            ),
+        }
+
+
+class KentixOneVersion(KentixHubEntity, SensorEntity):
+    """Detected KentixONE controller software version."""
+
+    _attr_translation_key = "kentixone_version"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:package-variant-closed"
+
+    def __init__(self, coordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_kentixone_version"
+
+    @property
+    def native_value(self) -> str | None:
+        return detect_kentixone_version(self.coordinator.data.devices)
+
+
+class KentixSmartApiVersion(KentixHubEntity, SensorEntity):
+    """SmartAPI compatibility profile derived from KentixONE version."""
+
+    _attr_translation_key = "smartapi_version"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:api"
+
+    def __init__(self, coordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_smartapi_version"
+
+    @property
+    def native_value(self) -> str | None:
+        return detect_smartapi_version(self.coordinator.data.devices)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        return {"source": "derived_from_kentixone_version"}

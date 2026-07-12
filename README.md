@@ -213,3 +213,16 @@ Two integration-level buttons are available:
 - **Refresh Kentix data now** refreshes system values and forces a full inventory discovery.
 
 The last known entity values remain available during two transient `/api/systemvalues` failures. Entities become unavailable after the third consecutive failure. With the default five-minute interval this is approximately 15 minutes. A successful refresh resets the counter immediately.
+
+## Diagnose und Wartung
+
+Unter **Einstellungen → Geräte & Dienste → Kentix** stehen Diagnoseentitäten für den Gesamtzustand, die erkannte KentixONE-Version und das aus dieser Version abgeleitete SmartAPI-Kompatibilitätsprofil bereit. Der Kentix-Status fasst API-Erreichbarkeit, Webhook-Konfiguration, letzte Aktualisierungen und erkannte Geräte zusammen.
+
+Zwei Wartungsaktionen sind verfügbar:
+
+- **Zustände jetzt aktualisieren** liest sofort `/api/systemvalues`, ohne das seltene Inventar zusätzlich abzufragen.
+- **Geräte neu erkennen** lädt Zustände sowie Alarmgruppen- und DoorLock-Inventar sofort neu, statt auf den Vier-Stunden-Zyklus zu warten.
+
+Über **Diagnoseinformationen herunterladen** kann ein anonymisierter Support-Export erzeugt werden. Namen, Host, Token und Webhook-Geheimnisse werden dabei nicht ausgegeben.
+
+AccessManager sind standardmäßig ausgeblendet. Diese Einstellung betrifft ausschließlich das AccessManager-Gerät und dessen eigene Messwerte; DoorLocks, Alarmgruppen und Bedienelemente bleiben sichtbar.

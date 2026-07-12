@@ -94,9 +94,9 @@ def test_pytest_asyncio_mode_matches_home_assistant_core() -> None:
     assert 'asyncio_default_fixture_loop_scope = "function"' in pyproject
 
 
-def test_release_version_is_0_4_1() -> None:
+def test_release_version_is_0_4_2() -> None:
     manifest = json.loads((ROOT / "custom_components/kentix/manifest.json").read_text())
-    assert manifest["version"] == "0.4.1"
+    assert manifest["version"] == "0.4.2"
 
 
 def test_inventory_and_battery_refresh_are_limited_to_four_hours() -> None:

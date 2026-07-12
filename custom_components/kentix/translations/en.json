@@ -81,8 +81,11 @@
       "repair_webhook": {
         "name": "Repair Kentix webhook"
       },
-      "refresh_data": {
-        "name": "Refresh Kentix data now"
+      "refresh_states": {
+        "name": "Refresh states now"
+      },
+      "rediscover_devices": {
+        "name": "Rediscover devices"
       }
     },
     "sensor": {
@@ -127,6 +130,15 @@
       },
       "invalid_webhook_count": {
         "name": "Invalid webhooks"
+      },
+      "health_status": {
+        "name": "Kentix status"
+      },
+      "kentixone_version": {
+        "name": "KentixONE version"
+      },
+      "smartapi_version": {
+        "name": "SmartAPI version"
       }
     }
   },
@@ -141,7 +153,7 @@
         "data_description": {
           "scan_interval": "Time between safety reconciliations through GET /api/systemvalues. Default: 300 seconds. Valid managed webhooks apply switching states immediately; this interval updates normal MultiSensor values and repairs missed events. Choose a lower value for more frequent environmental updates.",
           "manage_webhook": "Creates one active, uniquely named webhook in KentixONE. Switching states and alarm counters are applied directly from a validated payload; unknown payloads still trigger an API reconciliation. Other webhooks are never modified.",
-          "show_access_managers": "Disabled by default. AccessManagers are usually technical hosts for DoorLocks and can clutter the device list. Enable this option to expose AccessManagers and their own measurements."
+          "show_access_managers": "Disabled by default. AccessManagers are technical controllers for access control and DoorLocks. Hiding them removes only the AccessManager device and its own measurements; DoorLocks, alarm groups, and their controls remain fully visible. Enable this option to expose the AccessManager itself with its connectivity and diagnostic measurements."
         },
         "description": "Managed webhooks update alarm groups immediately. The system-values interval is a safety reconciliation and updates continuously changing MultiSensor values. Inventory is read at most every four hours.",
         "title": "Kentix options"

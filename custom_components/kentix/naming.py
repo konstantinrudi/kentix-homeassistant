@@ -74,3 +74,47 @@ def door_lock_parent_identifier(
     if door_lock.parent_group_id in groups:
         return (DOMAIN, f"{entry_id}:alarm_group:{door_lock.parent_group_id}")
     return None
+
+
+def alarm_group_path(
+    group: KentixAlarmGroup,
+    groups: Mapping[str, KentixAlarmGroup],
+) -> tuple[str, ...]:
+    """Return the hierarchy path from the root group to ``group``."""
+    path = [group.name]
+    current = group
+    visited = {group.id}
+    while current.parent_group_id is not None:
+        parent_id = current.parent_group_id
+        if parent_id in visited:
+            break
+        parent = groups.get(parent_id)
+        if parent is None:
+            break
+        visited.add(parent_id)
+        path.append(parent.name)
+        current = parent
+    return tuple(reversed(path))
+
+
+def alarm_group_sort_key(
+    group: KentixAlarmGroup,
+    groups: Mapping[str, KentixAlarmGroup],
+) -> tuple[tuple[str, ...], str]:
+    """Sort groups by their full hierarchy path, parent before children."""
+    return (
+        tuple(part.casefold() for part in alarm_group_path(group, groups)),
+        group.id,
+    )
+
+
+def sort_alarm_groups(
+    groups: Mapping[str, KentixAlarmGroup],
+) -> dict[str, KentixAlarmGroup]:
+    """Return a stable hierarchy-sorted alarm-group mapping."""
+    return {
+        group.id: group
+        for group in sorted(
+            groups.values(), key=lambda item: alarm_group_sort_key(item, groups)
+        )
+    }

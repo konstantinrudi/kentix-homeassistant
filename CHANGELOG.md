@@ -1,3 +1,11 @@
+## 0.4.2
+
+- Expanded Home Assistant diagnostics with a central Kentix status entity.
+- Detects and displays the KentixONE controller version and derived SmartAPI compatibility profile.
+- Added separate buttons for immediate state refresh and device rediscovery.
+- Sorts alarm groups by their full site/building/floor hierarchy.
+- Clarified that hiding AccessManagers never hides DoorLocks or alarm-group controls.
+
 # Changelog
 
 ## 0.4.1

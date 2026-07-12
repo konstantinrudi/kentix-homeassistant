@@ -9,7 +9,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_API_TOKEN, CONF_WEBHOOK_ID
+from .const import CONF_API_TOKEN, CONF_WEBHOOK_ID, UNAVAILABLE_AFTER_FAILURES
+from .naming import alarm_group_depth, alarm_group_sort_key
+from .versioning import detect_kentixone_version, detect_smartapi_version
 
 
 async def async_get_config_entry_diagnostics(
@@ -53,7 +55,7 @@ async def async_get_config_entry_diagnostics(
                 else None
             ),
             "consecutive_update_failures": coordinator.consecutive_update_failures,
-            "unavailable_after_failures": 3,
+            "unavailable_after_failures": UNAVAILABLE_AFTER_FAILURES,
             "last_update_error": coordinator.last_update_error,
             "configured_update_interval_seconds": int(
                 coordinator.update_interval.total_seconds()
@@ -75,9 +77,24 @@ async def async_get_config_entry_diagnostics(
             "managed_webhook_enabled": entry.runtime_data.webhook_manager.enabled,
             "managed_webhook_configured": entry.runtime_data.webhook_manager.configured,
             "managed_webhook_error": entry.runtime_data.webhook_manager.last_error,
+            "kentixone_version": detect_kentixone_version(snapshot.devices),
+            "smartapi_version": detect_smartapi_version(snapshot.devices),
+            "smartapi_version_source": "derived_from_kentixone_version",
+            "health": (
+                "unavailable"
+                if not coordinator.integration_available
+                else "degraded"
+                if coordinator.consecutive_update_failures
+                or (
+                    entry.runtime_data.webhook_manager.enabled
+                    and not entry.runtime_data.webhook_manager.configured
+                )
+                else "healthy"
+            ),
         },
         "alarm_group_capabilities": [
             {
+                "hierarchy_depth": alarm_group_depth(group, snapshot.alarm_groups),
                 "armed_known": group.armed is not None,
                 "partial_arm": group.partially_armed,
                 "arming": group.arming,
@@ -88,7 +105,10 @@ async def async_get_config_entry_diagnostics(
                 "raw_state": group.raw_state,
                 "changed_by_available": group.last_changed_by is not None,
             }
-            for group in snapshot.alarm_groups.values()
+            for group in sorted(
+                snapshot.alarm_groups.values(),
+                key=lambda item: alarm_group_sort_key(item, snapshot.alarm_groups),
+            )
         ],
         "runtime_device_capabilities": [
             {

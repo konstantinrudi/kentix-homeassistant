@@ -10,9 +10,9 @@ from homeassistant.helpers import entity_registry as er
 from .const import DOMAIN
 from .coordinator import KentixDataUpdateCoordinator
 from .naming import (
-    alarm_group_depth,
     alarm_group_display_name,
     alarm_group_parent_identifier,
+    alarm_group_sort_key,
     door_lock_parent_identifier,
 )
 from .visibility import runtime_device_visible
@@ -30,7 +30,7 @@ def async_sync_devices(
 
     # Repeated passes are safe and make sure parent devices exist first where possible.
     for group in sorted(
-        groups.values(), key=lambda item: alarm_group_depth(item, groups)
+        groups.values(), key=lambda item: alarm_group_sort_key(item, groups)
     ):
         parent_identifier = alarm_group_parent_identifier(entry.entry_id, group, groups)
         device = registry.async_get_or_create(
