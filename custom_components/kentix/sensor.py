@@ -17,7 +17,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .discovery import async_setup_dynamic_entities
 from .entity import KentixEntity, KentixHubEntity
-from .models import KentixAlarmGroup, KentixDoorLock
+from .models import KentixAlarmGroup, KentixDoorLock, KentixRuntimeDevice
 
 PARALLEL_UPDATES = 0
 
@@ -45,14 +45,15 @@ async def async_setup_entry(
         return entities
 
     def door_factory(door_lock: KentixDoorLock) -> list[SensorEntity]:
-        # Always create both telemetry entities for discovered DoorLocks. KentixONE
-        # may omit values temporarily or expose them only on a later four-hour
-        # inventory refresh. Existing entities can then move from unknown to the
-        # first reported value without requiring an integration reload.
-        return [
-            KentixDoorBattery(coordinator, entry, door_lock),
-            KentixDoorSignalStrength(coordinator, entry, door_lock),
+        # Always create the battery entity for discovered DoorLocks. Some KentixONE
+        # responses omit telemetry temporarily or expose it only on a later inventory
+        # refresh. The entity can then move from unknown to the first reported value
+        # without requiring an integration reload.
+        entities: list[SensorEntity] = [
+            KentixDoorBattery(coordinator, entry, door_lock)
         ]
+        entities.append(KentixDoorSignalStrength(coordinator, entry, door_lock))
+        return entities
 
     async_setup_dynamic_entities(
         entry,
@@ -67,6 +68,13 @@ async def async_setup_entry(
         async_add_entities,
         lambda: coordinator.data.door_locks,
         door_factory,
+    )
+    async_setup_dynamic_entities(
+        entry,
+        coordinator,
+        async_add_entities,
+        lambda: coordinator.data.devices,
+        lambda device: _runtime_sensor_factory(coordinator, entry, device),
     )
 
 
@@ -153,7 +161,6 @@ class KentixDoorMetric(KentixEntity, SensorEntity):
             super().available
             and self.coordinator.data.door_locks_available
             and door_lock is not None
-            and door_lock.available is not False
         )
 
 
@@ -205,6 +212,92 @@ class KentixDoorSignalStrength(KentixDoorMetric):
     def native_value(self) -> float | None:
         door_lock = self._door_lock
         return door_lock.signal_strength if door_lock else None
+
+
+_RUNTIME_SENSOR_DESCRIPTORS = {
+    "temperature": ("temperature", SensorDeviceClass.TEMPERATURE),
+    "humidity": ("humidity", SensorDeviceClass.HUMIDITY),
+    "dewpoint": ("dewpoint", SensorDeviceClass.TEMPERATURE),
+    "co": ("carbon_monoxide", SensorDeviceClass.CO),
+    "co2": ("carbon_dioxide", SensorDeviceClass.CO2),
+    "pressure": ("pressure", SensorDeviceClass.ATMOSPHERIC_PRESSURE),
+    "battery_level": ("battery", SensorDeviceClass.BATTERY),
+    "signal_strength": ("signal_strength", SensorDeviceClass.SIGNAL_STRENGTH),
+}
+
+
+def _runtime_sensor_factory(
+    coordinator, entry: ConfigEntry, device: KentixRuntimeDevice
+) -> list[SensorEntity]:
+    """Create numeric entities exposed and enabled by one runtime device."""
+    if device.type_code == 21:
+        return []
+    entities: list[SensorEntity] = []
+    for key in _RUNTIME_SENSOR_DESCRIPTORS:
+        measurement = device.measurement(key)
+        if measurement is None or not measurement.enabled:
+            continue
+        entities.append(KentixRuntimeSensor(coordinator, entry, device, key))
+    return entities
+
+
+class KentixRuntimeSensor(KentixEntity, SensorEntity):
+    """A numeric measurement from `/api/systemvalues`."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self, coordinator, entry: ConfigEntry, device: KentixRuntimeDevice, key: str
+    ) -> None:
+        translation_key, device_class = _RUNTIME_SENSOR_DESCRIPTORS[key]
+        super().__init__(
+            coordinator,
+            entry,
+            "runtime_device",
+            device.id,
+            device.name,
+            entity_key=f"runtime_{key}",
+        )
+        self._measurement_key = key
+        self._attr_translation_key = translation_key
+        self._attr_device_class = device_class
+
+    @property
+    def _device(self) -> KentixRuntimeDevice | None:
+        return self.coordinator.data.devices.get(self._object_id)
+
+    @property
+    def native_value(self):
+        device = self._device
+        measurement = device.measurement(self._measurement_key) if device else None
+        return measurement.value if measurement else None
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        device = self._device
+        measurement = device.measurement(self._measurement_key) if device else None
+        if measurement is None:
+            return None
+        if self._measurement_key == "battery_level":
+            return PERCENTAGE
+        if self._measurement_key == "signal_strength":
+            return SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+        return measurement.unit
+
+    @property
+    def available(self) -> bool:
+        device = self._device
+        return (
+            super().available
+            and self.coordinator.data.devices_available
+            and device is not None
+            and (measurement := device.measurement(self._measurement_key)) is not None
+            and measurement.enabled
+            and (
+                self._measurement_key in {"battery_level", "signal_strength"}
+                or device.available is not False
+            )
+        )
 
 
 class KentixWebhookCount(KentixHubEntity, SensorEntity):

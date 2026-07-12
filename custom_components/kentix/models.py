@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from dataclasses import replace as dataclass_replace
 from typing import Any
 
 _CAMEL_RE_1 = re.compile(r"(.)([A-Z][a-z]+)")
@@ -79,6 +80,7 @@ def _as_bool(value: Any) -> bool | None:
             "no",
             "off",
             "closed",
+            "close",
             "disarmed",
             "inactive",
             "normal",
@@ -113,6 +115,7 @@ def _as_battery_percent(value: Any) -> int | None:
         "high": 75,
         "good": 75,
         "medium": 50,
+        "half": 50,
         "normal": 50,
         "low": 25,
         "critical": 10,
@@ -471,11 +474,249 @@ class KentixDoorLock:
         return self.raw_state or "unknown"
 
 
+_RUNTIME_DEVICE_MODELS = {
+    2: "MultiSensor-RF-BAT",
+    3: "MultiSensor-DOOR",
+    21: "DoorLock",
+    101: "AlarmManager",
+    105: "AccessManager",
+}
+
+_PERSISTENT_MEASUREMENTS = {"battery_level", "signal_strength"}
+
+
+@dataclass(frozen=True, slots=True)
+class KentixMeasurement:
+    """Normalized runtime measurement from `/api/systemvalues`."""
+
+    key: str
+    value: Any
+    unit: str | None = None
+    assignment: str | None = None
+    status: str | None = None
+    last_updated: str | None = None
+    raw: Mapping[str, Any] = field(default_factory=dict, compare=False, repr=False)
+
+    @classmethod
+    def from_payload(
+        cls, key: str, payload: Mapping[str, Any], unit: str | None = None
+    ) -> KentixMeasurement:
+        """Create a normalized runtime measurement."""
+        normalized_key = _snake_case(key)
+        source = _normalized_payload(payload)
+        raw_value = source.get("value")
+
+        if normalized_key == "battery_level":
+            value: Any = _as_battery_percent(raw_value)
+        elif normalized_key in {
+            "temperature",
+            "humidity",
+            "dewpoint",
+            "co",
+            "co2",
+            "pressure",
+            "signal_strength",
+            "active_power",
+            "apparent_power",
+            "consumption",
+            "current",
+            "voltage",
+            "frequency",
+            "pue",
+        }:
+            value = _as_float(raw_value)
+        elif normalized_key in {
+            "motion",
+            "vibration",
+            "tilt",
+            "reed",
+        }:
+            value = _as_bool(raw_value)
+        elif normalized_key in {"connection", "ext_power"}:
+            value = _as_bool(raw_value)
+            if value is None:
+                status = str(source.get("status", "")).strip().lower()
+                if status == "ok":
+                    value = True
+                elif status in {"alarm", "warning", "error", "offline", "inactive"}:
+                    value = False
+        else:
+            value = raw_value
+
+        assignment = source.get("assignment")
+        status = source.get("status")
+        last_updated = source.get("last_updated")
+        return cls(
+            key=normalized_key,
+            value=value,
+            unit=unit,
+            assignment=str(assignment) if assignment is not None else None,
+            status=str(status) if status is not None else None,
+            last_updated=(str(last_updated) if last_updated is not None else None),
+            raw=dict(payload),
+        )
+
+    @property
+    def enabled(self) -> bool:
+        """Return whether Kentix has enabled or exposed this measurement."""
+        assignment = (self.assignment or "").strip().lower()
+        status = (self.status or "").strip().lower()
+        if assignment == "off" or status == "inactive":
+            return False
+        return self.value is not None or assignment not in {"", "off"}
+
+
+@dataclass(frozen=True, slots=True)
+class KentixRuntimeDevice:
+    """Physical Kentix device and its live measurements."""
+
+    id: str
+    name: str
+    type_code: int | None = None
+    model: str = "Kentix device"
+    version: str | None = None
+    parent_device_id: str | None = None
+    parent_group_id: str | None = None
+    active_state: str | None = None
+    status: str | None = None
+    measurements: Mapping[str, KentixMeasurement] = field(default_factory=dict)
+    raw: Mapping[str, Any] = field(default_factory=dict, compare=False, repr=False)
+
+    @classmethod
+    def from_payload(
+        cls, payload: Mapping[str, Any], units: Mapping[str, Any] | None = None
+    ) -> KentixRuntimeDevice:
+        """Create a runtime device from `/api/systemvalues`."""
+        source = _normalized_payload(payload)
+        object_id = _as_id(_first(source, "id", "device_id"))
+        name = str(_first(source, "name", default=object_id))
+        type_code = _as_int(_first(source, "type", "device_type"))
+        measurements_payload = source.get("measurements")
+        measurements: dict[str, KentixMeasurement] = {}
+        if isinstance(measurements_payload, Mapping):
+            for key, value in measurements_payload.items():
+                if not isinstance(value, Mapping):
+                    continue
+                normalized_key = _snake_case(str(key))
+                unit_value = (units or {}).get(normalized_key)
+                measurements[normalized_key] = KentixMeasurement.from_payload(
+                    normalized_key,
+                    value,
+                    str(unit_value) if unit_value is not None else None,
+                )
+
+        parent_device = _first(source, "device_id", "parent_device_id")
+        if parent_device is not None and str(parent_device) == object_id:
+            parent_device = None
+        parent_group = _first(source, "group_id", "parent_group_id")
+        version = _first(source, "version", "firmware_version")
+        active_state = _first(source, "active_state")
+        status = _first(source, "status")
+        return cls(
+            id=object_id,
+            name=name,
+            type_code=type_code,
+            model=_RUNTIME_DEVICE_MODELS.get(
+                type_code,
+                (
+                    f"Kentix type {type_code}"
+                    if type_code is not None
+                    else "Kentix device"
+                ),
+            ),
+            version=str(version) if version is not None else None,
+            parent_device_id=(
+                str(parent_device) if parent_device is not None else None
+            ),
+            parent_group_id=str(parent_group) if parent_group is not None else None,
+            active_state=(str(active_state) if active_state is not None else None),
+            status=str(status) if status is not None else None,
+            measurements=measurements,
+            raw=dict(payload),
+        )
+
+    def measurement(self, key: str) -> KentixMeasurement | None:
+        """Return a normalized measurement by key."""
+        return self.measurements.get(key)
+
+    @property
+    def available(self) -> bool | None:
+        """Return explicit runtime connectivity where available."""
+        connection = self.measurement("connection")
+        if connection is not None and isinstance(connection.value, bool):
+            return connection.value
+        if self.status is not None:
+            normalized = self.status.strip().lower()
+            if normalized == "ok":
+                return True
+            if normalized in {"offline", "inactive", "error"}:
+                return False
+        return None
+
+
+def extract_runtime_devices(
+    payload: Any,
+) -> tuple[dict[str, KentixRuntimeDevice], dict[str, str]]:
+    """Extract runtime devices and units from `/api/systemvalues`."""
+    if not isinstance(payload, Mapping):
+        return {}, {}
+
+    for envelope in (payload, payload.get("data"), payload.get("systemvalues")):
+        if not isinstance(envelope, Mapping):
+            continue
+        raw_units = envelope.get("units")
+        units = (
+            {str(key): str(value) for key, value in raw_units.items()}
+            if isinstance(raw_units, Mapping)
+            else {}
+        )
+        raw_devices = envelope.get("devices")
+        if not isinstance(raw_devices, list):
+            continue
+        devices: dict[str, KentixRuntimeDevice] = {}
+        for item in raw_devices:
+            if not isinstance(item, Mapping):
+                continue
+            try:
+                device = KentixRuntimeDevice.from_payload(item, units)
+            except (TypeError, ValueError):
+                continue
+            devices[device.id] = device
+        return devices, units
+    return {}, {}
+
+
+def merge_runtime_devices(
+    previous: Mapping[str, KentixRuntimeDevice],
+    current: Mapping[str, KentixRuntimeDevice],
+) -> dict[str, KentixRuntimeDevice]:
+    """Preserve last-known slow telemetry when a later response omits it."""
+    merged: dict[str, KentixRuntimeDevice] = {}
+    for object_id, device in current.items():
+        old = previous.get(object_id)
+        if old is None:
+            merged[object_id] = device
+            continue
+        measurements = dict(device.measurements)
+        for key in _PERSISTENT_MEASUREMENTS:
+            measurement = measurements.get(key)
+            old_measurement = old.measurements.get(key)
+            if old_measurement is None:
+                continue
+            if measurement is None or measurement.value is None:
+                measurements[key] = old_measurement
+        merged[object_id] = dataclass_replace(device, measurements=measurements)
+    return merged
+
+
 @dataclass(frozen=True, slots=True)
 class KentixData:
     """Coordinator snapshot."""
 
     alarm_groups: Mapping[str, KentixAlarmGroup]
     door_locks: Mapping[str, KentixDoorLock]
+    devices: Mapping[str, KentixRuntimeDevice] = field(default_factory=dict)
+    units: Mapping[str, str] = field(default_factory=dict)
     alarm_groups_available: bool = True
     door_locks_available: bool = True
+    devices_available: bool = True

@@ -50,6 +50,11 @@ async def async_get_config_entry_diagnostics(
             "door_locks_available": snapshot.door_locks_available,
             "alarm_group_count": len(snapshot.alarm_groups),
             "door_lock_count": len(snapshot.door_locks),
+            "runtime_device_count": len(snapshot.devices),
+            "runtime_devices_available": snapshot.devices_available,
+            "managed_webhook_enabled": entry.runtime_data.webhook_manager.enabled,
+            "managed_webhook_configured": entry.runtime_data.webhook_manager.configured,
+            "managed_webhook_error": entry.runtime_data.webhook_manager.last_error,
         },
         "alarm_group_capabilities": [
             {
@@ -64,6 +69,15 @@ async def async_get_config_entry_diagnostics(
                 "changed_by_available": group.last_changed_by is not None,
             }
             for group in snapshot.alarm_groups.values()
+        ],
+        "runtime_device_capabilities": [
+            {
+                "type_code": device.type_code,
+                "model": device.model,
+                "measurement_keys": sorted(device.measurements),
+                "available": device.available,
+            }
+            for device in snapshot.devices.values()
         ],
         "door_lock_capabilities": [
             {

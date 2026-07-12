@@ -15,8 +15,10 @@ from homeassistant.helpers.network import NoURLAvailableError
 from .api import KentixApiClient
 from .const import (
     CONF_API_TOKEN,
+    CONF_MANAGE_WEBHOOK,
     CONF_VERIFY_SSL,
     CONF_WEBHOOK_ID,
+    DEFAULT_MANAGE_WEBHOOK,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
     PLATFORMS,
@@ -28,6 +30,7 @@ from .device_registry import (
     async_sync_devices,
 )
 from .webhook_handler import async_handle_webhook
+from .webhook_manager import KentixWebhookManager
 
 type KentixConfigEntry = ConfigEntry["KentixRuntimeData"]
 
@@ -40,6 +43,7 @@ class KentixRuntimeData:
     coordinator: KentixDataUpdateCoordinator
     webhook_id: str
     webhook_url: str
+    webhook_manager: KentixWebhookManager
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: KentixConfigEntry) -> bool:
@@ -74,11 +78,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: KentixConfigEntry) -> bo
     except NoURLAvailableError:
         webhook_url = ha_webhook.async_generate_path(webhook_id)
 
+    webhook_manager = KentixWebhookManager(
+        hass,
+        entry,
+        client,
+        webhook_url,
+        enabled=entry.options.get(CONF_MANAGE_WEBHOOK, DEFAULT_MANAGE_WEBHOOK),
+    )
     entry.runtime_data = KentixRuntimeData(
         client=client,
         coordinator=coordinator,
         webhook_id=webhook_id,
         webhook_url=webhook_url,
+        webhook_manager=webhook_manager,
     )
 
     ha_webhook.async_register(
@@ -91,6 +103,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: KentixConfigEntry) -> bo
         allowed_methods={"POST", "PUT"},
     )
     entry.async_on_unload(lambda: ha_webhook.async_unregister(hass, webhook_id))
+    await webhook_manager.async_start()
 
     # Every Kentix object is automatically represented in the HA device registry,
     # even when it currently has no optional sensor entity.
@@ -113,6 +126,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: KentixConfigEntry) -> bo
 async def async_unload_entry(hass: HomeAssistant, entry: KentixConfigEntry) -> bool:
     """Unload a Kentix config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: KentixConfigEntry) -> None:
+    """Remove only the Kentix webhook owned by this config entry."""
+    client = KentixApiClient(
+        async_get_clientsession(
+            hass, verify_ssl=entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)
+        ),
+        entry.data[CONF_HOST],
+        entry.data[CONF_API_TOKEN],
+        verify_ssl=entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
+    )
+    webhook_id = entry.data.get(CONF_WEBHOOK_ID, "")
+    webhook_url = ha_webhook.async_generate_path(webhook_id) if webhook_id else ""
+    manager = KentixWebhookManager(
+        hass,
+        entry,
+        client,
+        webhook_url,
+        enabled=True,
+    )
+    await manager.async_delete_managed()
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: KentixConfigEntry) -> None:

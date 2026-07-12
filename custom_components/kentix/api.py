@@ -52,6 +52,9 @@ class KentixRoutes:
     # Deprecated in KentixONE 8.6.3 but still documented. The method is kept
     # behind this adapter so a future replacement route is a one-line change.
     door_lock_open: str = "/api/doorlocks/{object_id}/open"
+    alarm_group_detail: str = "/api/alarmgroups/{object_id}"
+    webhooks: str = "/api/webhooks"
+    webhook_detail: str = "/api/webhooks/{object_id}"
 
 
 T = TypeVar("T", KentixAlarmGroup, KentixDoorLock)
@@ -171,6 +174,51 @@ class KentixApiClient:
         await self._request(
             "PUT", self._routes.door_lock_open.format(object_id=object_id)
         )
+
+    async def async_get_webhooks(self) -> list[dict[str, Any]]:
+        """Return configured KentixONE webhooks."""
+        payload = await self._request("GET", self._routes.webhooks)
+        return extract_items(payload)
+
+    async def async_create_webhook(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        """Create a KentixONE webhook."""
+        result = await self._request("POST", self._routes.webhooks, json_data=payload)
+        return dict(result) if isinstance(result, Mapping) else {}
+
+    async def async_update_webhook(
+        self, object_id: str, payload: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        """Partially update a KentixONE webhook."""
+        result = await self._request(
+            "PATCH",
+            self._routes.webhook_detail.format(object_id=object_id),
+            json_data=payload,
+        )
+        return dict(result) if isinstance(result, Mapping) else {}
+
+    async def async_delete_webhook(self, object_id: str) -> None:
+        """Delete a KentixONE webhook."""
+        await self._request(
+            "DELETE", self._routes.webhook_detail.format(object_id=object_id)
+        )
+
+    async def async_get_alarm_group_detail(self, object_id: str) -> dict[str, Any]:
+        """Read one alarm-group configuration for webhook assignments."""
+        payload = await self._request(
+            "GET", self._routes.alarm_group_detail.format(object_id=object_id)
+        )
+        return dict(payload) if isinstance(payload, Mapping) else {}
+
+    async def async_set_alarm_group_webhooks(
+        self, object_id: str, webhooks: Sequence[Mapping[str, Any]]
+    ) -> dict[str, Any]:
+        """Replace only the webhook assignment array of an alarm group."""
+        payload = await self._request(
+            "PATCH",
+            self._routes.alarm_group_detail.format(object_id=object_id),
+            json_data={"webhooks": [dict(item) for item in webhooks]},
+        )
+        return dict(payload) if isinstance(payload, Mapping) else {}
 
     async def _request_collection_candidates(self, routes: Sequence[str]) -> Any:
         """Try collection routes and follow Kentix pagination when present."""

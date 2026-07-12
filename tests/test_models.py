@@ -418,3 +418,133 @@ async def test_release_door_lock_uses_put_request() -> None:
     await client.async_release_door_lock("11")
 
     assert calls == [("PUT", "/api/doorlocks/11/open")]
+
+
+def test_systemvalues_runtime_devices_are_normalized() -> None:
+    from custom_components.kentix.models import extract_runtime_devices
+
+    devices, units = extract_runtime_devices(
+        {
+            "units": {
+                "temperature": "°C",
+                "humidity": "%",
+                "signal_strength": "dBm",
+            },
+            "devices": [
+                {
+                    "id": 7,
+                    "name": "Living room",
+                    "type": 2,
+                    "device_id": 5,
+                    "group_id": 1,
+                    "version": "03.02",
+                    "status": "ok",
+                    "measurements": {
+                        "temperature": {
+                            "value": "22.8",
+                            "assignment": "always-active",
+                            "status": "ok",
+                        },
+                        "humidity": {
+                            "value": "53",
+                            "assignment": "always-active",
+                            "status": "ok",
+                        },
+                        "motion": {
+                            "value": False,
+                            "assignment": "armed-active",
+                            "status": "ok",
+                        },
+                        "battery_level": {
+                            "value": "half",
+                            "assignment": "system",
+                            "status": "ok",
+                        },
+                        "signal_strength": {
+                            "value": -43,
+                            "assignment": "display",
+                            "status": "ok",
+                        },
+                        "connection": {
+                            "assignment": "sabotage",
+                            "status": "ok",
+                        },
+                    },
+                }
+            ],
+        }
+    )
+
+    device = devices["7"]
+    assert device.model == "MultiSensor-RF-BAT"
+    assert device.parent_device_id == "5"
+    assert device.parent_group_id == "1"
+    assert device.measurement("temperature").value == 22.8
+    assert device.measurement("temperature").unit == "°C"
+    assert device.measurement("humidity").value == 53.0
+    assert device.measurement("motion").value is False
+    assert device.measurement("battery_level").value == 50
+    assert device.measurement("signal_strength").value == -43.0
+    assert device.measurement("connection").value is True
+    assert units["signal_strength"] == "dBm"
+
+
+def test_runtime_reed_close_is_false() -> None:
+    from custom_components.kentix.models import extract_runtime_devices
+
+    devices, _ = extract_runtime_devices(
+        {
+            "devices": [
+                {
+                    "id": 6,
+                    "name": "Door contact",
+                    "type": 3,
+                    "measurements": {
+                        "reed": {
+                            "value": "close",
+                            "assignment": "armed-active",
+                            "status": "ok",
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    assert devices["6"].measurement("reed").value is False
+
+
+def test_runtime_persistent_telemetry_is_kept() -> None:
+    from custom_components.kentix.models import (
+        KentixRuntimeDevice,
+        merge_runtime_devices,
+    )
+
+    previous = {
+        "7": KentixRuntimeDevice.from_payload(
+            {
+                "id": 7,
+                "name": "Sensor",
+                "type": 2,
+                "measurements": {
+                    "battery_level": {"value": "full", "status": "ok"},
+                    "signal_strength": {"value": -40, "status": "ok"},
+                },
+            }
+        )
+    }
+    current = {
+        "7": KentixRuntimeDevice.from_payload(
+            {
+                "id": 7,
+                "name": "Sensor",
+                "type": 2,
+                "measurements": {
+                    "battery_level": {"value": None, "status": "ok"},
+                    "signal_strength": {"value": None, "status": "ok"},
+                },
+            }
+        )
+    }
+    merged = merge_runtime_devices(previous, current)
+    assert merged["7"].measurement("battery_level").value == 100
+    assert merged["7"].measurement("signal_strength").value == -40.0

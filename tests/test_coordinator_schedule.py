@@ -40,6 +40,8 @@ async def test_normal_poll_only_reads_systemvalues() -> None:
     coordinator.last_inventory_refresh = None
     coordinator._alarm_groups = {}
     coordinator._door_locks = {}
+    coordinator._runtime_devices = {}
+    coordinator._units = {}
     coordinator._door_inventory_available = False
 
     first = await coordinator._async_update_data()
@@ -96,26 +98,4 @@ async def test_door_battery_stays_available_after_transient_inventory_failure() 
     await coordinator._async_refresh_inventory(dt_util.utcnow())
 
     assert coordinator._door_locks["11"].battery_level == 100
-    assert coordinator._door_inventory_available is True
-
-
-@pytest.mark.asyncio
-async def test_door_signal_keeps_last_successful_value_when_omitted() -> None:
-    coordinator = object.__new__(KentixDataUpdateCoordinator)
-    coordinator._door_locks = {
-        "11": KentixDoorLock(
-            id="11", name="Entrance", battery_level=100, signal_strength=-71
-        )
-    }
-    coordinator._door_inventory_available = True
-
-    class ClientWithoutSignal(FakeClient):
-        async def async_get_door_locks(self):
-            self.door_inventory_calls += 1
-            return {"11": KentixDoorLock(id="11", name="Entrance", battery_level=100)}
-
-    coordinator.client = ClientWithoutSignal()
-    await coordinator._async_refresh_inventory(dt_util.utcnow())
-
-    assert coordinator._door_locks["11"].signal_strength == -71
     assert coordinator._door_inventory_available is True

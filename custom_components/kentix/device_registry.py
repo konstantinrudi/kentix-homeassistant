@@ -44,6 +44,36 @@ def async_sync_devices(
         if parent_identifier is None and device.via_device_id is not None:
             registry.async_update_device(device.id, via_device_id=None)
 
+    runtime_devices = coordinator.data.devices
+    for runtime in runtime_devices.values():
+        if runtime.type_code == 21:
+            continue
+        via_device = None
+        if runtime.parent_device_id:
+            parent = runtime_devices.get(runtime.parent_device_id)
+            if parent is not None and parent.type_code != 21:
+                via_device = (
+                    DOMAIN,
+                    f"{entry.entry_id}:runtime_device:{parent.id}",
+                )
+        if via_device is None and runtime.parent_group_id:
+            via_device = (
+                DOMAIN,
+                f"{entry.entry_id}:alarm_group:{runtime.parent_group_id}",
+            )
+        device = registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, f"{entry.entry_id}:runtime_device:{runtime.id}")},
+            manufacturer="Kentix",
+            model=runtime.model,
+            name=runtime.name,
+            sw_version=runtime.version,
+            via_device=via_device,
+            configuration_url=coordinator.client.base_url,
+        )
+        if via_device is None and device.via_device_id is not None:
+            registry.async_update_device(device.id, via_device_id=None)
+
     for door_lock in coordinator.data.door_locks.values():
         parent_identifier = door_lock_parent_identifier(
             entry.entry_id, door_lock, groups

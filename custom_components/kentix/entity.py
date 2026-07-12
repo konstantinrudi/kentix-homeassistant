@@ -53,6 +53,26 @@ class KentixEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
             )
             model = "Alarm Group"
             physical_type = "alarm_group"
+            sw_version = None
+        elif object_type == "runtime_device":
+            device = coordinator.data.devices.get(object_id)
+            device_name = device.name if device is not None else object_name
+            model = device.model if device is not None else "Kentix device"
+            sw_version = device.version if device is not None else None
+            physical_type = "runtime_device"
+            via_device = None
+            if device is not None and device.parent_device_id:
+                parent = coordinator.data.devices.get(device.parent_device_id)
+                if parent is not None and parent.type_code != 21:
+                    via_device = (
+                        DOMAIN,
+                        f"{entry.entry_id}:runtime_device:{parent.id}",
+                    )
+            if via_device is None and device is not None and device.parent_group_id:
+                via_device = (
+                    DOMAIN,
+                    f"{entry.entry_id}:alarm_group:{device.parent_group_id}",
+                )
         else:
             door_lock = coordinator.data.door_locks.get(object_id)
             device_name = door_lock.name if door_lock is not None else object_name
@@ -65,12 +85,14 @@ class KentixEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
             )
             model = "DoorLock"
             physical_type = "door_lock"
+            sw_version = None
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{entry.entry_id}:{physical_type}:{object_id}")},
             name=device_name,
             manufacturer="Kentix",
             model=model,
+            sw_version=sw_version,
             via_device=via_device,
             configuration_url=coordinator.client.base_url,
         )

@@ -36,9 +36,11 @@ from .api import (
 )
 from .const import (
     CONF_API_TOKEN,
+    CONF_MANAGE_WEBHOOK,
     CONF_SCAN_INTERVAL,
     CONF_VERIFY_SSL,
     CONF_WEBHOOK_ID,
+    DEFAULT_MANAGE_WEBHOOK,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
@@ -101,6 +103,7 @@ class KentixConfigFlow(ConfigFlow, domain=DOMAIN):
                     },
                     options={
                         CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+                        CONF_MANAGE_WEBHOOK: DEFAULT_MANAGE_WEBHOOK,
                     },
                 )
 
@@ -219,6 +222,9 @@ class KentixOptionsFlow(OptionsFlow):
         current = self.config_entry.options.get(
             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
         )
+        manage_webhook = self.config_entry.options.get(
+            CONF_MANAGE_WEBHOOK, DEFAULT_MANAGE_WEBHOOK
+        )
         webhook_id = self.config_entry.data.get(CONF_WEBHOOK_ID, "")
         webhook_url = ha_webhook.async_generate_path(webhook_id) if webhook_id else "-"
         if self.config_entry.state is ConfigEntryState.LOADED:
@@ -237,6 +243,9 @@ class KentixOptionsFlow(OptionsFlow):
                             unit_of_measurement="s",
                         )
                     ),
+                    vol.Required(
+                        CONF_MANAGE_WEBHOOK, default=manage_webhook
+                    ): BooleanSelector(),
                 }
             ),
             description_placeholders={"webhook_url": webhook_url},

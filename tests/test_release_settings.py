@@ -23,6 +23,12 @@ def test_default_polling_interval_is_60_seconds() -> None:
     assert _constant_value("DEFAULT_SCAN_INTERVAL") == 60
 
 
+def test_automatic_webhook_management_is_enabled_by_default() -> None:
+    assert _constant_value("DEFAULT_MANAGE_WEBHOOK") is True
+    config_flow = (ROOT / "custom_components/kentix/config_flow.py").read_text()
+    assert "CONF_MANAGE_WEBHOOK: DEFAULT_MANAGE_WEBHOOK" in config_flow
+
+
 def test_polling_range_remains_configurable() -> None:
     assert _constant_value("MIN_SCAN_INTERVAL") == 5
     assert _constant_value("MAX_SCAN_INTERVAL") == 3600
@@ -75,9 +81,9 @@ def test_pytest_asyncio_mode_matches_home_assistant_core() -> None:
     assert 'asyncio_default_fixture_loop_scope = "function"' in pyproject
 
 
-def test_release_version_is_0_3_4() -> None:
+def test_release_version_is_0_4_0() -> None:
     manifest = json.loads((ROOT / "custom_components/kentix/manifest.json").read_text())
-    assert manifest["version"] == "0.3.4"
+    assert manifest["version"] == "0.4.0"
 
 
 def test_inventory_and_battery_refresh_are_limited_to_four_hours() -> None:
@@ -103,7 +109,7 @@ def test_readme_documents_low_load_schedule_and_webhooks() -> None:
     readme = (ROOT / "README.md").read_text()
     assert "at most every **4 hours**" in readme
     assert "Automation → Webhooks" in readme
-    assert "Change of switching status" in readme
+    assert "After every switching operation" in readme
     assert "Repository setup before publishing" not in readme
     assert "YOUR_GITHUB_USERNAME" not in readme
     assert "python scripts/configure_repository.py" not in readme
@@ -157,18 +163,4 @@ def test_door_battery_entity_is_created_before_first_value() -> None:
     )
     assert "KentixDoorBattery(coordinator, entry, door_lock)" in sensor_source
     assert "if door_lock.battery_level is not None:" not in sensor_source
-
-
-def test_door_signal_entity_is_created_before_first_value() -> None:
-    """DoorLock signal entity must exist even if initial telemetry is absent."""
-    sensor_source = (ROOT / "custom_components/kentix/sensor.py").read_text(
-        encoding="utf-8"
-    )
     assert "KentixDoorSignalStrength(coordinator, entry, door_lock)" in sensor_source
-    assert "if door_lock.signal_strength is not None:" not in sensor_source
-    assert (
-        "_attr_entity_registry_enabled_default = False"
-        not in sensor_source.split("class KentixDoorSignalStrength", 1)[1].split(
-            "class KentixWebhookCount", 1
-        )[0]
-    )

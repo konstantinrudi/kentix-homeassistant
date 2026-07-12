@@ -41,7 +41,14 @@ from .const import (
     EVENT_KENTIX_WEBHOOK_RECEIVED,
     INVENTORY_REFRESH_INTERVAL,
 )
-from .models import KentixAlarmGroup, KentixData, KentixDoorLock
+from .models import (
+    KentixAlarmGroup,
+    KentixData,
+    KentixDoorLock,
+    KentixRuntimeDevice,
+    extract_runtime_devices,
+    merge_runtime_devices,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,6 +83,8 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
         self.last_inventory_refresh: datetime | None = None
         self._alarm_groups: dict[str, KentixAlarmGroup] = {}
         self._door_locks: dict[str, KentixDoorLock] = {}
+        self._runtime_devices: dict[str, KentixRuntimeDevice] = {}
+        self._units: dict[str, str] = {}
         self._door_inventory_available = False
 
     async def _async_update_data(self) -> KentixData:
@@ -111,11 +120,20 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
             except KentixAuthenticationError as err:
                 raise ConfigEntryAuthFailed from err
 
+        runtime_devices, units = extract_runtime_devices(system_values)
+        self._runtime_devices = merge_runtime_devices(
+            self._runtime_devices, runtime_devices
+        )
+        self._units = units or self._units
+        door_locks = _merge_door_lock_runtime(self._door_locks, self._runtime_devices)
         current = KentixData(
             alarm_groups=merge_alarm_group_runtime(self._alarm_groups, system_values),
-            door_locks=dict(self._door_locks),
+            door_locks=door_locks,
+            devices=dict(self._runtime_devices),
+            units=dict(self._units),
             alarm_groups_available=True,
             door_locks_available=self._door_inventory_available,
+            devices_available=True,
         )
         if previous is not None:
             self._fire_change_events(previous, current)
@@ -272,3 +290,43 @@ async def _async_cancel(task: asyncio.Task[Any] | None) -> None:
     task.cancel()
     with suppress(asyncio.CancelledError):
         await task
+
+
+def _merge_door_lock_runtime(
+    inventory: dict[str, KentixDoorLock],
+    devices: dict[str, KentixRuntimeDevice],
+) -> dict[str, KentixDoorLock]:
+    """Merge current `/api/systemvalues` telemetry into DoorLock inventory."""
+    merged: dict[str, KentixDoorLock] = {}
+    for object_id, door_lock in inventory.items():
+        runtime = devices.get(object_id)
+        if runtime is None:
+            merged[object_id] = door_lock
+            continue
+        battery = runtime.measurement("battery_level")
+        signal = runtime.measurement("signal_strength")
+        reed = runtime.measurement("reed")
+        merged[object_id] = replace(
+            door_lock,
+            battery_level=(
+                battery.value
+                if battery is not None and isinstance(battery.value, int)
+                else door_lock.battery_level
+            ),
+            signal_strength=(
+                signal.value
+                if signal is not None and isinstance(signal.value, (int, float))
+                else door_lock.signal_strength
+            ),
+            available=(
+                runtime.available
+                if runtime.available is not None
+                else door_lock.available
+            ),
+            is_open=(
+                reed.value
+                if reed is not None and isinstance(reed.value, bool)
+                else door_lock.is_open
+            ),
+        )
+    return merged

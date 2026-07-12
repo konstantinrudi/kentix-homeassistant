@@ -60,6 +60,18 @@
       },
       "door_api_connectivity": {
         "name": "DoorLock-Inventar"
+      },
+      "motion": {
+        "name": "Bewegung"
+      },
+      "external_power": {
+        "name": "Externe Stromversorgung"
+      },
+      "vibration": {
+        "name": "Vibration"
+      },
+      "managed_webhook": {
+        "name": "Automatischer Kentix-Webhook"
       }
     },
     "button": {
@@ -85,6 +97,24 @@
       },
       "last_webhook": {
         "name": "Letzter Webhook"
+      },
+      "temperature": {
+        "name": "Temperatur"
+      },
+      "humidity": {
+        "name": "Luftfeuchtigkeit"
+      },
+      "dewpoint": {
+        "name": "Taupunkt"
+      },
+      "carbon_monoxide": {
+        "name": "Kohlenmonoxid"
+      },
+      "carbon_dioxide": {
+        "name": "Kohlendioxid"
+      },
+      "pressure": {
+        "name": "Luftdruck"
       }
     }
   },
@@ -92,12 +122,14 @@
     "step": {
       "init": {
         "data": {
-          "scan_interval": "Abfrageintervall"
+          "scan_interval": "Systemwerte-Abfrageintervall",
+          "manage_webhook": "Kentix-Webhook automatisch verwalten"
         },
         "data_description": {
-          "scan_interval": "Zeit zwischen den Abfragen von GET /api/systemvalues. Standard: 60 Sekunden. Für ältere Kentix-Hardware werden 60 Sekunden empfohlen; moderne SiteManager können in der Regel auch alle 30 Sekunden abgefragt werden. Alarmgruppen-/DoorLock-Erkennung und DoorLock-Batteriedaten werden getrennt höchstens alle vier Stunden aktualisiert."
+          "scan_interval": "Zeit zwischen GET /api/systemvalues Abfragen. Standard: 60 Sekunden. ältere Kentix-Hardware sollte mit 60 Sekunden betrieben werden; moderne SiteManager können meist 30 Sekunden nutzen. Webhooks lösen bei Alarmen und Schaltvorgängen zusätzlich sofortige Aktualisierungen aus.",
+          "manage_webhook": "Legt einen aktiven, eindeutig benannten Webhook in KentixONE an und verknüpft ihn automatisch mit allen Alarmgruppen für alle Alarme, Systemalarme und abgeschlossene Schaltvorgänge. Fremde Webhooks werden nicht verändert."
         },
-        "description": "KentixONE kann diese Integration sofort benachrichtigen. Lege in Kentix einen lokalen Webhook mit dieser Ziel-URL an: {webhook_url}\n\nDas normale Polling fragt nur /api/systemvalues ab. Alarmgruppen-/DoorLock-Erkennung und DoorLock-Batteriedaten werden höchstens alle vier Stunden aktualisiert.",
+        "description": "Das Systemwerte-Intervall aktualisiert Alarmgruppen und MultiSensor-Messwerte gemeinsam über /api/systemvalues. Die automatische Webhook-Verwaltung sorgt zusätzlich für sofortige Aktualisierungen bei Alarmen und Schaltvorgängen. Inventardaten werden höchstens alle vier Stunden gelesen.",
         "title": "Kentix-Optionen"
       }
     }
