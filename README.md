@@ -189,3 +189,6 @@ The repository contains the required HACS brand asset at `brand/icon.png` and th
 Licensed under the [Apache License 2.0](LICENSE).
 
 Copyright 2026 [@konstantinrudi](https://github.com/konstantinrudi). Attribution and license notices must be preserved when redistributing the project. See [NOTICE](NOTICE).
+
+
+DoorLock battery data and signal strength are refreshed at startup and then at most every **4 hours**. Last known values remain visible across sparse or temporarily failed refreshes.

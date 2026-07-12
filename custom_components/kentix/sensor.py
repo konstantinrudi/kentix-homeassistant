@@ -45,12 +45,14 @@ async def async_setup_entry(
         return entities
 
     def door_factory(door_lock: KentixDoorLock) -> list[SensorEntity]:
-        entities: list[SensorEntity] = []
-        if door_lock.battery_level is not None:
-            entities.append(KentixDoorBattery(coordinator, entry, door_lock))
-        if door_lock.signal_strength is not None:
-            entities.append(KentixDoorSignalStrength(coordinator, entry, door_lock))
-        return entities
+        # Always create both telemetry entities for discovered DoorLocks. KentixONE
+        # may omit values temporarily or expose them only on a later four-hour
+        # inventory refresh. Existing entities can then move from unknown to the
+        # first reported value without requiring an integration reload.
+        return [
+            KentixDoorBattery(coordinator, entry, door_lock),
+            KentixDoorSignalStrength(coordinator, entry, door_lock),
+        ]
 
     async_setup_dynamic_entities(
         entry,
@@ -186,7 +188,6 @@ class KentixDoorSignalStrength(KentixDoorMetric):
     _attr_translation_key = "signal_strength"
     _attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
     _attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
-    _attr_entity_registry_enabled_default = False
 
     def __init__(
         self, coordinator, entry: ConfigEntry, door_lock: KentixDoorLock

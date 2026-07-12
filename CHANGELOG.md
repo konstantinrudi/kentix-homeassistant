@@ -1,3 +1,11 @@
+## 0.3.4
+
+- Always create DoorLock battery and signal-strength sensors.
+- Preserve the last known signal-strength value across sparse or failed inventory refreshes.
+
+- Always create a battery sensor for every discovered DoorLock.
+- Populate it when Kentix first reports telemetry and preserve the last known value across later omissions or transient inventory failures.
+
 - Keep the last known DoorLock battery value when a later inventory response omits battery data or a refresh temporarily fails.
 
 # Changelog
