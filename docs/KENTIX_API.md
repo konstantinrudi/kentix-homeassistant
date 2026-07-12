@@ -35,8 +35,8 @@ GET /api/doorlocks/{id}
 User actions use the corresponding command endpoint:
 
 ```text
-POST /api/alarmgroups/{id}/arm
-POST /api/alarmgroups/{id}/disarm
+PUT /api/alarmgroups/{id}/arm
+PUT /api/alarmgroups/{id}/disarm
 PUT /api/doorlocks/{id}/open
 ```
 

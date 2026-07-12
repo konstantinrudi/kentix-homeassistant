@@ -6,6 +6,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -143,10 +144,15 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
             self._alarm_groups = alarm_result
 
         if isinstance(door_result, Exception):
-            self._door_inventory_available = False
+            # Keep the last successful inventory and its telemetry available. A
+            # transient four-hour refresh failure must not turn stable battery
+            # values into unknown until the next successful request.
+            self._door_inventory_available = bool(self._door_locks)
             _LOGGER.warning("Kentix DoorLock inventory refresh failed: %s", door_result)
         else:
-            self._door_locks = door_result
+            self._door_locks = _merge_door_lock_inventory(
+                self._door_locks, door_result
+            )
             self._door_inventory_available = True
 
     def _fire_change_events(self, previous: KentixData, current: KentixData) -> None:
@@ -227,6 +233,38 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
         # Command refreshes query only systemvalues unless the four-hour inventory
         # interval is due.
         await self.async_request_refresh()
+
+
+def _merge_door_lock_inventory(
+    previous: dict[str, KentixDoorLock],
+    current: dict[str, KentixDoorLock],
+) -> dict[str, KentixDoorLock]:
+    """Keep last-known optional telemetry when Kentix omits it temporarily."""
+    merged: dict[str, KentixDoorLock] = {}
+    for object_id, door_lock in current.items():
+        old = previous.get(object_id)
+        if old is None:
+            merged[object_id] = door_lock
+            continue
+        merged[object_id] = replace(
+            door_lock,
+            battery_level=(
+                door_lock.battery_level
+                if door_lock.battery_level is not None
+                else old.battery_level
+            ),
+            signal_strength=(
+                door_lock.signal_strength
+                if door_lock.signal_strength is not None
+                else old.signal_strength
+            ),
+            available=(
+                door_lock.available
+                if door_lock.available is not None
+                else old.available
+            ),
+        )
+    return merged
 
 
 async def _async_cancel(task: asyncio.Task[Any] | None) -> None:

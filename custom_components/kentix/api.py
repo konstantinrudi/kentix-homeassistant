@@ -157,13 +157,13 @@ class KentixApiClient:
     async def async_arm_alarm_group(self, object_id: str) -> None:
         """Arm an alarm group."""
         await self._request(
-            "POST", self._routes.alarm_group_arm.format(object_id=object_id)
+            "PUT", self._routes.alarm_group_arm.format(object_id=object_id)
         )
 
     async def async_disarm_alarm_group(self, object_id: str) -> None:
         """Disarm an alarm group."""
         await self._request(
-            "POST", self._routes.alarm_group_disarm.format(object_id=object_id)
+            "PUT", self._routes.alarm_group_disarm.format(object_id=object_id)
         )
 
     async def async_release_door_lock(self, object_id: str) -> None:

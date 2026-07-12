@@ -58,19 +58,19 @@ def alarm_group_parent_identifier(
     entry_id: str,
     group: KentixAlarmGroup,
     groups: Mapping[str, KentixAlarmGroup],
-) -> tuple[str, str]:
-    """Return the device identifier through which an alarm group is connected."""
+) -> tuple[str, str] | None:
+    """Return the parent alarm-group identifier, if one exists."""
     if group.parent_group_id in groups:
         return (DOMAIN, f"{entry_id}:alarm_group:{group.parent_group_id}")
-    return (DOMAIN, entry_id)
+    return None
 
 
 def door_lock_parent_identifier(
     entry_id: str,
     door_lock: KentixDoorLock,
     groups: Mapping[str, KentixAlarmGroup],
-) -> tuple[str, str]:
-    """Return the parent alarm-group or hub identifier for a DoorLock."""
+) -> tuple[str, str] | None:
+    """Return the parent alarm-group identifier for a DoorLock, if available."""
     if door_lock.parent_group_id in groups:
         return (DOMAIN, f"{entry_id}:alarm_group:{door_lock.parent_group_id}")
-    return (DOMAIN, entry_id)
+    return None

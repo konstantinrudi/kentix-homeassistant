@@ -1,4 +1,14 @@
+- Keep the last known DoorLock battery value when a later inventory response omits battery data or a refresh temporarily fails.
+
 # Changelog
+
+## 0.3.3 - 2026-07-12
+
+- License the current project under Apache License 2.0 and add attribution for `@konstantinrudi`.
+- Remove the unnecessary KentixONE hub device from the Home Assistant device registry.
+- Keep integration-level diagnostics as standalone entities instead of attaching them to a synthetic device.
+- Detach root alarm groups and unassigned DoorLocks from the former hub while preserving the alarm-group hierarchy.
+- Automatically remove the legacy hub device during setup after updating from an earlier version.
 
 ## 0.3.2 - 2026-07-12
 

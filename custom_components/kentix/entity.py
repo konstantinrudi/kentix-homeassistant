@@ -49,7 +49,7 @@ class KentixEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
                     entry.entry_id, group, coordinator.data.alarm_groups
                 )
                 if group is not None
-                else (DOMAIN, entry.entry_id)
+                else None
             )
             model = "Alarm Group"
             physical_type = "alarm_group"
@@ -61,7 +61,7 @@ class KentixEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
                     entry.entry_id, door_lock, coordinator.data.alarm_groups
                 )
                 if door_lock is not None
-                else (DOMAIN, entry.entry_id)
+                else None
             )
             model = "DoorLock"
             physical_type = "door_lock"
@@ -77,7 +77,7 @@ class KentixEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
 
 
 class KentixHubEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
-    """Base for hub-level entities."""
+    """Base for integration-level entities without a synthetic device."""
 
     _attr_has_entity_name = True
 
@@ -85,10 +85,4 @@ class KentixHubEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
         self, coordinator: KentixDataUpdateCoordinator, entry: ConfigEntry
     ) -> None:
         super().__init__(coordinator)
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title,
-            manufacturer="Kentix",
-            model="KentixONE",
-            configuration_url=coordinator.client.base_url,
-        )
+        self._entry = entry

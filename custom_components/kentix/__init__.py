@@ -9,7 +9,6 @@ from homeassistant.components import webhook as ha_webhook
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.network import NoURLAvailableError
 
@@ -23,7 +22,11 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import KentixDataUpdateCoordinator
-from .device_registry import async_remove_legacy_lock_entities, async_sync_devices
+from .device_registry import (
+    async_remove_legacy_hub_device,
+    async_remove_legacy_lock_entities,
+    async_sync_devices,
+)
 from .webhook_handler import async_handle_webhook
 
 type KentixConfigEntry = ConfigEntry["KentixRuntimeData"]
@@ -89,18 +92,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: KentixConfigEntry) -> bo
     )
     entry.async_on_unload(lambda: ha_webhook.async_unregister(hass, webhook_id))
 
-    dr.async_get(hass).async_get_or_create(
-        config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, entry.entry_id)},
-        manufacturer="Kentix",
-        model="KentixONE",
-        name=entry.title,
-        configuration_url=client.base_url,
-    )
-
     # Every Kentix object is automatically represented in the HA device registry,
     # even when it currently has no optional sensor entity.
     async_sync_devices(hass, entry, coordinator)
+    async_remove_legacy_hub_device(hass, entry)
     entry.async_on_unload(
         coordinator.async_add_listener(
             lambda: async_sync_devices(hass, entry, coordinator)

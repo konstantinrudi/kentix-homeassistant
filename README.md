@@ -60,6 +60,7 @@ The normal polling interval is adjustable under **Settings → Devices & service
 - Every normal polling cycle requests only `GET /api/systemvalues`
 - Alarm-group and DoorLock inventory is read once at startup and then at most every **4 hours**
 - DoorLock battery values are refreshed with the same four-hour inventory cycle
+- The last successfully received battery value remains visible until KentixONE supplies a newer value
 - A Home Assistant restart triggers one immediate inventory refresh
 
 This avoids repeated collection and detail requests during normal state polling.
@@ -122,6 +123,8 @@ Alarm-group device names follow the hierarchy:
 
 DoorLocks are linked to their parent alarm-group device when KentixONE provides the relationship.
 
+The integration does not create an additional synthetic `KentixONE (IP address)` device. Integration-level diagnostics remain available as standalone entities.
+
 ## DoorLock control
 
 Kentix DoorLocks used with a manually rotated cylinder do not provide a persistent Home Assistant locked/unlocked state. The integration therefore exposes one stateless button:
@@ -183,4 +186,6 @@ The repository contains the required HACS brand asset at `brand/icon.png` and th
 
 ## License
 
-MIT
+Licensed under the [Apache License 2.0](LICENSE).
+
+Copyright 2026 [@konstantinrudi](https://github.com/konstantinrudi). Attribution and license notices must be preserved when redistributing the project. See [NOTICE](NOTICE).

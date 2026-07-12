@@ -31,26 +31,60 @@ def async_sync_devices(
     for group in sorted(
         groups.values(), key=lambda item: alarm_group_depth(item, groups)
     ):
-        registry.async_get_or_create(
+        parent_identifier = alarm_group_parent_identifier(entry.entry_id, group, groups)
+        device = registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}:alarm_group:{group.id}")},
             manufacturer="Kentix",
             model="Alarm Group",
             name=alarm_group_display_name(group, groups),
-            via_device=alarm_group_parent_identifier(entry.entry_id, group, groups),
+            via_device=parent_identifier,
             configuration_url=coordinator.client.base_url,
         )
+        if parent_identifier is None and device.via_device_id is not None:
+            registry.async_update_device(device.id, via_device_id=None)
 
     for door_lock in coordinator.data.door_locks.values():
-        registry.async_get_or_create(
+        parent_identifier = door_lock_parent_identifier(
+            entry.entry_id, door_lock, groups
+        )
+        device = registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}:door_lock:{door_lock.id}")},
             manufacturer="Kentix",
             model="DoorLock",
             name=door_lock.name,
-            via_device=door_lock_parent_identifier(entry.entry_id, door_lock, groups),
+            via_device=parent_identifier,
             configuration_url=coordinator.client.base_url,
         )
+        if parent_identifier is None and device.via_device_id is not None:
+            registry.async_update_device(device.id, via_device_id=None)
+
+
+@callback
+def async_remove_legacy_hub_device(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+) -> None:
+    """Remove the synthetic KentixONE hub device used by older releases."""
+    device_registry = dr.async_get(hass)
+    hub_device = device_registry.async_get_device(
+        identifiers={(DOMAIN, entry.entry_id)}
+    )
+    if hub_device is None:
+        return
+
+    entity_registry = er.async_get(hass)
+    for registry_entry in er.async_entries_for_config_entry(
+        entity_registry, entry.entry_id
+    ):
+        if registry_entry.device_id == hub_device.id:
+            entity_registry.async_update_entity(
+                registry_entry.entity_id,
+                device_id=None,
+            )
+
+    device_registry.async_remove_device(hub_device.id)
 
 
 @callback

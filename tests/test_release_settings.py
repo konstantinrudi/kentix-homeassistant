@@ -75,9 +75,9 @@ def test_pytest_asyncio_mode_matches_home_assistant_core() -> None:
     assert 'asyncio_default_fixture_loop_scope = "function"' in pyproject
 
 
-def test_release_version_is_0_3_2() -> None:
+def test_release_version_is_0_3_3() -> None:
     manifest = json.loads((ROOT / "custom_components/kentix/manifest.json").read_text())
-    assert manifest["version"] == "0.3.2"
+    assert manifest["version"] == "0.3.3"
 
 
 def test_inventory_and_battery_refresh_are_limited_to_four_hours() -> None:
@@ -131,3 +131,20 @@ def test_readme_shows_project_artwork() -> None:
     readme = (ROOT / "README.md").read_text()
     assert 'src="assets/kentix-homeassistant.png"' in readme
     assert "PUT /api/doorlocks/{id}/open" in readme
+
+
+def test_apache_license_and_attribution_are_present() -> None:
+    license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
+    notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    manifest = json.loads(
+        (ROOT / "custom_components/kentix/manifest.json").read_text(encoding="utf-8")
+    )
+
+    assert "Apache License" in license_text
+    assert "Version 2.0, January 2004" in license_text
+    assert "@konstantinrudi" in notice
+    assert "Apache License 2.0" in readme
+    assert manifest["codeowners"] == ["@konstantinrudi"]
+    assert "OWNER" not in manifest["documentation"]
+    assert "OWNER" not in manifest["issue_tracker"]
