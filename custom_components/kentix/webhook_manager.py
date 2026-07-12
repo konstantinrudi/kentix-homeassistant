@@ -16,6 +16,7 @@ from .const import (
     KENTIX_WEBHOOK_EVENT_SWITCH_COMPLETE,
     KENTIX_WEBHOOK_EVENT_SYSTEM_ALARMS,
     KENTIX_WEBHOOK_NAME_PREFIX,
+    KENTIX_WEBHOOK_SCHEMA,
     WEBHOOK_SYNC_INTERVAL,
 )
 
@@ -73,6 +74,12 @@ class KentixWebhookManager:
     async def _async_periodic_sync(self, _now) -> None:
         await self.async_ensure()
 
+    async def async_repair(self) -> None:
+        """Force a full reconciliation of the managed webhook and assignments."""
+        self._known_group_ids.clear()
+        self.webhook_id = None
+        await self.async_ensure()
+
     async def async_ensure(self) -> None:
         """Create/update the managed webhook and its alarm-group assignments."""
         if not self.enabled:
@@ -113,10 +120,7 @@ class KentixWebhookManager:
             "content_type": 0,
             "url": self.webhook_url,
             "data": json.dumps(
-                {
-                    "schema": "kentix_home_assistant_v1",
-                    "eventType": "kentix_state_changed",
-                },
+                _managed_payload(),
                 separators=(",", ":"),
             ),
             "authentication_mode": 0,
@@ -231,3 +235,43 @@ def _canonical_assignments(value) -> list[tuple]:
             )
         )
     return sorted(result)
+
+
+def _managed_payload() -> dict[str, str]:
+    """Return the versioned payload KentixONE sends to Home Assistant."""
+    return {
+        "schema": KENTIX_WEBHOOK_SCHEMA,
+        "event_type": "group_state",
+        "alarm_event_id": "$ALARM_EVENT_ID$",
+        "group_id": "$GROUP_ID$",
+        "group_state": "$GROUP_STATE$",
+        "system_unixtime": "$SYSTEM_UNIXTIME$",
+        "group_armed_alarm_count": "$GROUP_ARMED_ALARM_COUNT$",
+        "group_armed_quitable_alarm_count": ("$GROUP_ARMED_QUITABLE_ALARM_COUNT$"),
+        "group_armed_warning_count": "$GROUP_ARMED_WARNING_COUNT$",
+        "group_armed_quitable_warning_count": ("$GROUP_ARMED_QUITABLE_WARNING_COUNT$"),
+        "group_always_alarm_count": "$GROUP_ALWAYS_ALARM_COUNT$",
+        "group_always_quitable_alarm_count": ("$GROUP_ALWAYS_QUITABLE_ALARM_COUNT$"),
+        "group_always_warning_count": "$GROUP_ALWAYS_WARNING_COUNT$",
+        "group_always_quitable_warning_count": (
+            "$GROUP_ALWAYS_QUITABLE_WARNING_COUNT$"
+        ),
+        "group_fire_alarm_count": "$GROUP_FIRE_ALARM_COUNT$",
+        "group_fire_quitable_alarm_count": "$GROUP_FIRE_QUITABLE_ALARM_COUNT$",
+        "group_fire_warning_count": "$GROUP_FIRE_WARNING_COUNT$",
+        "group_fire_quitable_warning_count": ("$GROUP_FIRE_QUITABLE_WARNING_COUNT$"),
+        "group_sabotage_alarm_count": "$GROUP_SABOTAGE_ALARM_COUNT$",
+        "group_sabotage_quitable_alarm_count": (
+            "$GROUP_SABOTAGE_QUITABLE_ALARM_COUNT$"
+        ),
+        "group_sabotage_warning_count": "$GROUP_SABOTAGE_WARNING_COUNT$",
+        "group_sabotage_quitable_warning_count": (
+            "$GROUP_SABOTAGE_QUITABLE_WARNING_COUNT$"
+        ),
+        "group_system_alarm_count": "$GROUP_SYSTEM_ALARM_COUNT$",
+        "group_system_quitable_alarm_count": ("$GROUP_SYSTEM_QUITABLE_ALARM_COUNT$"),
+        "group_system_warning_count": "$GROUP_SYSTEM_WARNING_COUNT$",
+        "group_system_quitable_warning_count": (
+            "$GROUP_SYSTEM_QUITABLE_WARNING_COUNT$"
+        ),
+    }

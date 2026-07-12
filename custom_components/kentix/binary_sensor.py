@@ -14,6 +14,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .discovery import async_setup_dynamic_entities
 from .entity import KentixEntity, KentixHubEntity
 from .models import KentixDoorLock, KentixRuntimeDevice
+from .visibility import runtime_device_visible
 
 PARALLEL_UPDATES = 0
 
@@ -145,7 +146,7 @@ def _runtime_binary_factory(
     coordinator, entry: ConfigEntry, device: KentixRuntimeDevice
 ) -> list[BinarySensorEntity]:
     """Create enabled binary measurements for a runtime device."""
-    if device.type_code == 21:
+    if not runtime_device_visible(entry, device):
         return []
     entities: list[BinarySensorEntity] = []
     for key in _RUNTIME_BINARY_DESCRIPTORS:

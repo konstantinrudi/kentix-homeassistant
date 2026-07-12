@@ -16,9 +16,10 @@ A local, HACS-compatible Home Assistant custom integration for KentixONE alarm g
 - MultiSensor values from the existing `GET /api/systemvalues` request
 - Temperature, humidity, dew point, CO/CO₂, pressure, motion, door contact, external power, battery, signal strength and connectivity when exposed by KentixONE
 - Automatic KentixONE webhook creation and alarm-group assignment
-- Immediate refresh after alarms and completed switching operations
-- Polling remains active as a fallback and for continuously changing environmental values
+- Direct, near-real-time alarm-group updates from validated KentixONE webhooks
+- Five-minute polling by default as a safety reconciliation and for continuously changing environmental values
 - Kentix hierarchy represented as Home Assistant devices
+- AccessManagers hidden by default with an option to expose them
 - UI setup, options, diagnostics, reauthentication, German and English translations
 
 ## Installation
@@ -56,14 +57,15 @@ Use a dedicated Kentix user with only the permissions required for the desired a
 
 The **System values polling interval** is configurable under **Settings → Devices & services → Kentix → Configure**.
 
-- Default: **60 seconds**
-- Older Kentix hardware: **60 seconds recommended**
-- Modern SiteManagers: **30 seconds is usually suitable**
+- Default: **300 seconds (5 minutes)**
+- A managed webhook updates alarm-group switching states immediately
+- The interval remains the safety reconciliation for missed webhooks
+- Normal temperature, humidity and other continuously changing values update on this interval
+- Choose a lower value when environmental values need to update more frequently
 - Every normal cycle uses one `GET /api/systemvalues` request
 - Alarm-group and DoorLock inventory is read at startup and at most every **4 hours**
 - DoorLock inventory battery values are refreshed in that four-hour cycle
-- Runtime battery and signal values found in `/api/systemvalues` are updated with the normal cycle
-- The last known battery and signal value is retained when Kentix temporarily omits it
+- Runtime battery and signal values found in `/api/systemvalues` retain their last known value when Kentix temporarily omits them
 
 Alarm groups and MultiSensor values share the same system-values request. A separate MultiSensor polling interval would therefore not reduce API load.
 
@@ -101,7 +103,9 @@ The validated Kentix event codes are:
 
 The managed setup intentionally uses codes `0`, `5` and `50` to avoid redundant duplicate notifications.
 
-A received webhook does not blindly overwrite Home Assistant state. It triggers an immediate fresh `GET /api/systemvalues` request, and that API response remains authoritative.
+The managed webhook uses a versioned payload containing `$GROUP_ID$`, `$GROUP_STATE$`, `$SYSTEM_UNIXTIME$` and alarm/warning counters. After validation, Home Assistant applies the reported group state directly without an extra API request. Unknown, incomplete or older payloads cannot overwrite a newer state; unrecognized payloads fall back to an immediate `GET /api/systemvalues` reconciliation.
+
+KentixONE remains responsible for alarm-group hierarchy. Home Assistant sends exactly one arm or disarm request for the selected group and never repeats commands for parent or child groups. Direct webhooks update only the group explicitly reported by KentixONE; regular polling remains the safety net after restarts, network interruptions or missed webhooks.
 
 Automatic management requires Home Assistant to have an internal URL reachable from KentixONE. If that is unavailable, the integration continues to work through polling and exposes the webhook setup status as a diagnostic entity.
 
@@ -134,6 +138,8 @@ Known type mappings currently include:
 - `21` → DoorLock
 - `101` → AlarmManager
 - `105` → AccessManager
+
+AccessManagers are hidden by default because they commonly serve only as technical hosts for DoorLocks. Enable **Show AccessManagers in Home Assistant** in the integration options to expose their device and measurements. DoorLocks remain visible regardless of this option.
 
 Unknown types still appear as generic Kentix devices when they expose supported measurements.
 
@@ -182,7 +188,7 @@ The integration does not create an additional synthetic `KentixONE (IP address)`
 - Use a least-privilege Kentix API user.
 - Restrict that user to the DoorLocks and alarm groups Home Assistant may control.
 - Tokens, hosts, object names and raw Kentix payloads are excluded from diagnostics.
-- Webhook payloads are not treated as authoritative state.
+- Only versioned managed webhook payloads with a known group ID and a valid 0/1 group state are applied directly.
 
 Security reports can be submitted as described in [SECURITY.md](SECURITY.md).
 
@@ -195,3 +201,15 @@ The repository includes HACS brand assets under `brand/` and Home Assistant loca
 Licensed under the [Apache License 2.0](LICENSE).
 
 Copyright 2026 [@konstantinrudi](https://github.com/konstantinrudi). Attribution and license notices must be preserved when redistributing the project. See [NOTICE](NOTICE).
+
+
+### Reliability and manual actions
+
+KentixONE remains the source of truth for alarm-group hierarchy. Home Assistant sends only one arm/disarm command for the selected group and never repeats commands for parent or child groups. A direct webhook updates only the group identified by KentixONE.
+
+Two integration-level buttons are available:
+
+- **Repair Kentix webhook** reconciles the managed webhook and all alarm-group assignments.
+- **Refresh Kentix data now** refreshes system values and forces a full inventory discovery.
+
+The last known entity values remain available during two transient `/api/systemvalues` failures. Entities become unavailable after the third consecutive failure. With the default five-minute interval this is approximately 15 minutes. A successful refresh resets the counter immediately.

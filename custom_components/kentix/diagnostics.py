@@ -40,6 +40,26 @@ async def async_get_config_entry_diagnostics(
                 else None
             ),
             "webhook_count": coordinator.webhook_count,
+            "invalid_webhook_count": coordinator.invalid_webhook_count,
+            "last_valid_webhook_received": (
+                coordinator.last_valid_webhook_received.isoformat()
+                if coordinator.last_valid_webhook_received
+                else None
+            ),
+            "last_webhook_error": coordinator.last_webhook_error,
+            "last_successful_update": (
+                coordinator.last_successful_update.isoformat()
+                if coordinator.last_successful_update
+                else None
+            ),
+            "consecutive_update_failures": coordinator.consecutive_update_failures,
+            "unavailable_after_failures": 3,
+            "last_update_error": coordinator.last_update_error,
+            "configured_update_interval_seconds": int(
+                coordinator.update_interval.total_seconds()
+            )
+            if coordinator.update_interval
+            else None,
             "last_inventory_refresh": (
                 coordinator.last_inventory_refresh.isoformat()
                 if coordinator.last_inventory_refresh

@@ -18,6 +18,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .discovery import async_setup_dynamic_entities
 from .entity import KentixEntity, KentixHubEntity
 from .models import KentixAlarmGroup, KentixDoorLock, KentixRuntimeDevice
+from .visibility import runtime_device_visible
 
 PARALLEL_UPDATES = 0
 
@@ -33,6 +34,8 @@ async def async_setup_entry(
         [
             KentixWebhookCount(coordinator, entry),
             KentixLastWebhook(coordinator, entry),
+            KentixLastValidWebhook(coordinator, entry),
+            KentixInvalidWebhookCount(coordinator, entry),
         ]
     )
 
@@ -230,7 +233,7 @@ def _runtime_sensor_factory(
     coordinator, entry: ConfigEntry, device: KentixRuntimeDevice
 ) -> list[SensorEntity]:
     """Create numeric entities exposed and enabled by one runtime device."""
-    if device.type_code == 21:
+    if not runtime_device_visible(entry, device):
         return []
     entities: list[SensorEntity] = []
     for key in _RUNTIME_SENSOR_DESCRIPTORS:
@@ -332,3 +335,37 @@ class KentixLastWebhook(KentixHubEntity, SensorEntity):
     @property
     def native_value(self) -> datetime | None:
         return self.coordinator.last_webhook_received
+
+
+class KentixLastValidWebhook(KentixHubEntity, SensorEntity):
+    """Timestamp of the last directly validated state webhook."""
+
+    _attr_translation_key = "last_valid_webhook"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, coordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_last_valid_webhook"
+
+    @property
+    def native_value(self) -> datetime | None:
+        return self.coordinator.last_valid_webhook_received
+
+
+class KentixInvalidWebhookCount(KentixHubEntity, SensorEntity):
+    """Number of webhook payloads that required API fallback."""
+
+    _attr_translation_key = "invalid_webhook_count"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+    _attr_native_unit_of_measurement = "events"
+
+    def __init__(self, coordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_invalid_webhook_count"
+
+    @property
+    def native_value(self) -> int:
+        return self.coordinator.invalid_webhook_count

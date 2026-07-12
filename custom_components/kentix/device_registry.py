@@ -15,6 +15,7 @@ from .naming import (
     alarm_group_parent_identifier,
     door_lock_parent_identifier,
 )
+from .visibility import runtime_device_visible
 
 
 @callback
@@ -46,12 +47,12 @@ def async_sync_devices(
 
     runtime_devices = coordinator.data.devices
     for runtime in runtime_devices.values():
-        if runtime.type_code == 21:
+        if not runtime_device_visible(entry, runtime):
             continue
         via_device = None
         if runtime.parent_device_id:
             parent = runtime_devices.get(runtime.parent_device_id)
-            if parent is not None and parent.type_code != 21:
+            if parent is not None and runtime_device_visible(entry, parent):
                 via_device = (
                     DOMAIN,
                     f"{entry.entry_id}:runtime_device:{parent.id}",
@@ -74,6 +75,10 @@ def async_sync_devices(
         if via_device is None and device.via_device_id is not None:
             registry.async_update_device(device.id, via_device_id=None)
 
+    _async_remove_hidden_runtime_devices(
+        registry, er.async_get(hass), entry, runtime_devices
+    )
+
     for door_lock in coordinator.data.door_locks.values():
         parent_identifier = door_lock_parent_identifier(
             entry.entry_id, door_lock, groups
@@ -89,6 +94,30 @@ def async_sync_devices(
         )
         if parent_identifier is None and device.via_device_id is not None:
             registry.async_update_device(device.id, via_device_id=None)
+
+
+@callback
+def _async_remove_hidden_runtime_devices(
+    registry: dr.DeviceRegistry,
+    entity_registry: er.EntityRegistry,
+    entry: ConfigEntry,
+    runtime_devices,
+) -> None:
+    """Remove previously exposed runtime devices that are now filtered out."""
+    for runtime in runtime_devices.values():
+        if runtime_device_visible(entry, runtime):
+            continue
+        device = registry.async_get_device(
+            identifiers={(DOMAIN, f"{entry.entry_id}:runtime_device:{runtime.id}")}
+        )
+        if device is None:
+            continue
+        for registry_entry in er.async_entries_for_config_entry(
+            entity_registry, entry.entry_id
+        ):
+            if registry_entry.device_id == device.id:
+                entity_registry.async_remove(registry_entry.entity_id)
+        registry.async_remove_device(device.id)
 
 
 @callback

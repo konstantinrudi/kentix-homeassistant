@@ -40,6 +40,7 @@ from .const import (
     EVENT_KENTIX_DOOR_OPENED,
     EVENT_KENTIX_WEBHOOK_RECEIVED,
     INVENTORY_REFRESH_INTERVAL,
+    UNAVAILABLE_AFTER_FAILURES,
 )
 from .models import (
     KentixAlarmGroup,
@@ -49,6 +50,7 @@ from .models import (
     extract_runtime_devices,
     merge_runtime_devices,
 )
+from .webhook_payload import parse_managed_webhook
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -86,6 +88,23 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
         self._runtime_devices: dict[str, KentixRuntimeDevice] = {}
         self._units: dict[str, str] = {}
         self._door_inventory_available = False
+        self._webhook_group_timestamps: dict[str, int] = {}
+        self.consecutive_update_failures = 0
+        self.last_successful_update: datetime | None = None
+        self.last_update_error: str | None = None
+        self.last_valid_webhook_received: datetime | None = None
+        self.invalid_webhook_count = 0
+        self.last_webhook_error: str | None = None
+
+    @property
+    def integration_available(self) -> bool:
+        """Keep entities available through short transient API outages."""
+        return self.consecutive_update_failures < UNAVAILABLE_AFTER_FAILURES
+
+    async def async_force_full_refresh(self) -> None:
+        """Force system values and inventory to refresh immediately."""
+        self.last_inventory_refresh = None
+        await self.async_request_refresh()
 
     async def _async_update_data(self) -> KentixData:
         previous = getattr(self, "data", None)
@@ -106,12 +125,15 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
             system_values = await system_values_task
         except KentixAuthenticationError as err:
             await _async_cancel(inventory_task)
+            self._note_update_failure(err)
             raise ConfigEntryAuthFailed from err
         except KentixConnectionError as err:
             await _async_cancel(inventory_task)
+            self._note_update_failure(err)
             raise UpdateFailed(str(err)) from err
         except KentixApiError as err:
             await _async_cancel(inventory_task)
+            self._note_update_failure(err)
             raise UpdateFailed(f"Kentix SmartAPI error: {err}") from err
 
         if inventory_task is not None:
@@ -120,6 +142,9 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
             except KentixAuthenticationError as err:
                 raise ConfigEntryAuthFailed from err
 
+        self.consecutive_update_failures = 0
+        self.last_update_error = None
+        self.last_successful_update = now
         runtime_devices, units = extract_runtime_devices(system_values)
         self._runtime_devices = merge_runtime_devices(
             self._runtime_devices, runtime_devices
@@ -205,6 +230,16 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
                 if old.is_open is not True and door_lock.is_open is True:
                     self.hass.bus.async_fire(EVENT_KENTIX_DOOR_OPENED, event_data)
 
+    def _note_update_failure(self, err: Exception) -> None:
+        self.consecutive_update_failures += 1
+        self.last_update_error = type(err).__name__
+
+    def async_note_invalid_webhook(self, reason: str) -> None:
+        """Record a webhook payload that could not be applied directly."""
+        self.invalid_webhook_count += 1
+        self.last_webhook_error = reason
+        self.async_update_listeners()
+
     def async_note_webhook(self, payload: Any) -> None:
         """Record a webhook notification and emit a privacy-conscious event."""
         self.last_webhook_received = dt_util.utcnow()
@@ -228,6 +263,59 @@ class KentixDataUpdateCoordinator(DataUpdateCoordinator[KentixData]):
                 ATTR_EVENT_TYPE: event_type,
             },
         )
+
+    def async_apply_managed_webhook(self, payload: Any) -> bool:
+        """Apply a validated state only to the group named by KentixONE."""
+        update = parse_managed_webhook(payload)
+        current_data = getattr(self, "data", None)
+        if update is None:
+            self.async_note_invalid_webhook(
+                "Unrecognized or incomplete webhook payload"
+            )
+            return False
+        if current_data is None or update.group_id not in current_data.alarm_groups:
+            self.async_note_invalid_webhook("Webhook references an unknown alarm group")
+            return False
+
+        previous_timestamp = self._webhook_group_timestamps.get(update.group_id, -1)
+        if update.timestamp is not None and update.timestamp < previous_timestamp:
+            # A late duplicate is valid but must not roll a newer state back.
+            return True
+
+        group = current_data.alarm_groups[update.group_id]
+        alarm_count = (
+            update.alarm_count if update.alarm_count is not None else group.alarm_count
+        )
+        warning_count = (
+            update.warning_count
+            if update.warning_count is not None
+            else group.warning_count
+        )
+        updated_group = replace(
+            group,
+            armed=update.armed,
+            partially_armed=False,
+            arming=False,
+            disarming=False,
+            raw_state="armed" if update.armed else "disarmed",
+            alarm_count=alarm_count,
+            warning_count=warning_count,
+            triggered=(alarm_count > 0 if alarm_count is not None else group.triggered),
+        )
+        if update.timestamp is not None:
+            self._webhook_group_timestamps[update.group_id] = update.timestamp
+
+        groups = dict(current_data.alarm_groups)
+        groups[update.group_id] = updated_group
+        updated_data = replace(current_data, alarm_groups=groups)
+        self.last_valid_webhook_received = dt_util.utcnow()
+        self.last_webhook_error = None
+        self._fire_change_events(current_data, updated_data)
+        if updated_data == current_data:
+            self.async_update_listeners()
+        else:
+            self.async_set_updated_data(updated_data)
+        return True
 
     async def async_execute_command(
         self, command: Callable[[], Awaitable[None]]

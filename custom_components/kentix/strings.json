@@ -77,6 +77,12 @@
     "button": {
       "release_lock": {
         "name": "Release lock"
+      },
+      "repair_webhook": {
+        "name": "Repair Kentix webhook"
+      },
+      "refresh_data": {
+        "name": "Refresh Kentix data now"
       }
     },
     "sensor": {
@@ -115,6 +121,12 @@
       },
       "pressure": {
         "name": "Pressure"
+      },
+      "last_valid_webhook": {
+        "name": "Last valid state webhook"
+      },
+      "invalid_webhook_count": {
+        "name": "Invalid webhooks"
       }
     }
   },
@@ -123,13 +135,15 @@
       "init": {
         "data": {
           "scan_interval": "System values polling interval",
-          "manage_webhook": "Automatically manage Kentix webhook"
+          "manage_webhook": "Automatically manage Kentix webhook",
+          "show_access_managers": "Show AccessManagers in Home Assistant"
         },
         "data_description": {
-          "scan_interval": "Time between GET /api/systemvalues requests. Default: 60 seconds. Use 60 seconds for older Kentix hardware; modern SiteManagers can usually use 30 seconds. Webhooks additionally trigger immediate refreshes for alarms and switching events.",
-          "manage_webhook": "Creates one active, uniquely named webhook in KentixONE and assigns it to every alarm group for all alarms, system alarms, and completed switching operations. Other webhooks are never modified."
+          "scan_interval": "Time between safety reconciliations through GET /api/systemvalues. Default: 300 seconds. Valid managed webhooks apply switching states immediately; this interval updates normal MultiSensor values and repairs missed events. Choose a lower value for more frequent environmental updates.",
+          "manage_webhook": "Creates one active, uniquely named webhook in KentixONE. Switching states and alarm counters are applied directly from a validated payload; unknown payloads still trigger an API reconciliation. Other webhooks are never modified.",
+          "show_access_managers": "Disabled by default. AccessManagers are usually technical hosts for DoorLocks and can clutter the device list. Enable this option to expose AccessManagers and their own measurements."
         },
-        "description": "The system-values interval updates alarm groups and MultiSensor measurements together through /api/systemvalues. Automatic webhook management additionally provides immediate refreshes for alarms and switching operations. Inventory is read at most every four hours.",
+        "description": "Managed webhooks update alarm groups immediately. The system-values interval is a safety reconciliation and updates continuously changing MultiSensor values. Inventory is read at most every four hours.",
         "title": "Kentix options"
       }
     }

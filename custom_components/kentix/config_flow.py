@@ -38,10 +38,12 @@ from .const import (
     CONF_API_TOKEN,
     CONF_MANAGE_WEBHOOK,
     CONF_SCAN_INTERVAL,
+    CONF_SHOW_ACCESS_MANAGERS,
     CONF_VERIFY_SSL,
     CONF_WEBHOOK_ID,
     DEFAULT_MANAGE_WEBHOOK,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SHOW_ACCESS_MANAGERS,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
     MAX_SCAN_INTERVAL,
@@ -104,6 +106,7 @@ class KentixConfigFlow(ConfigFlow, domain=DOMAIN):
                     options={
                         CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
                         CONF_MANAGE_WEBHOOK: DEFAULT_MANAGE_WEBHOOK,
+                        CONF_SHOW_ACCESS_MANAGERS: DEFAULT_SHOW_ACCESS_MANAGERS,
                     },
                 )
 
@@ -225,6 +228,9 @@ class KentixOptionsFlow(OptionsFlow):
         manage_webhook = self.config_entry.options.get(
             CONF_MANAGE_WEBHOOK, DEFAULT_MANAGE_WEBHOOK
         )
+        show_access_managers = self.config_entry.options.get(
+            CONF_SHOW_ACCESS_MANAGERS, DEFAULT_SHOW_ACCESS_MANAGERS
+        )
         webhook_id = self.config_entry.data.get(CONF_WEBHOOK_ID, "")
         webhook_url = ha_webhook.async_generate_path(webhook_id) if webhook_id else "-"
         if self.config_entry.state is ConfigEntryState.LOADED:
@@ -245,6 +251,9 @@ class KentixOptionsFlow(OptionsFlow):
                     ),
                     vol.Required(
                         CONF_MANAGE_WEBHOOK, default=manage_webhook
+                    ): BooleanSelector(),
+                    vol.Required(
+                        CONF_SHOW_ACCESS_MANAGERS, default=show_access_managers
                     ): BooleanSelector(),
                 }
             ),

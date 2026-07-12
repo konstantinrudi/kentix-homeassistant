@@ -10,6 +10,7 @@ from custom_components.kentix.webhook_manager import (
     KentixWebhookManager,
     _canonical_assignments,
     _desired_assignments,
+    _managed_payload,
 )
 
 
@@ -20,6 +21,15 @@ def test_managed_webhook_assignments_use_validated_event_codes() -> None:
     assert assignments[0]["trigger_on_warning"] is True
     assert assignments[2]["trigger_on_alarm"] is False
     assert assignments[2]["trigger_on_warning"] is False
+
+
+def test_managed_payload_contains_direct_group_state_variables() -> None:
+    payload = _managed_payload()
+    assert payload["schema"] == "kentix_home_assistant_v2"
+    assert payload["group_id"] == "$GROUP_ID$"
+    assert payload["group_state"] == "$GROUP_STATE$"
+    assert payload["system_unixtime"] == "$SYSTEM_UNIXTIME$"
+    assert payload["group_system_warning_count"] == "$GROUP_SYSTEM_WARNING_COUNT$"
 
 
 def test_assignment_comparison_is_order_independent() -> None:

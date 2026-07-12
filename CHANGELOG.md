@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1
+
+- Apply direct webhook state only to the alarm group reported by KentixONE; no local hierarchy propagation or duplicate arm/disarm commands.
+- Add buttons to repair the managed webhook and refresh all Kentix data immediately.
+- Keep last-known states through two transient API failures and mark entities unavailable after the third consecutive failure.
+- Add webhook validity and API-health details to diagnostics.
+- Keep AccessManagers hidden by default with an opt-in option.
+
 ## 0.4.0
 
 - Add automatic runtime-device and MultiSensor discovery from `/api/systemvalues`.

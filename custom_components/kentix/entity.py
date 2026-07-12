@@ -13,6 +13,7 @@ from .naming import (
     alarm_group_parent_identifier,
     door_lock_parent_identifier,
 )
+from .visibility import runtime_device_visible
 
 
 class KentixEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
@@ -63,7 +64,7 @@ class KentixEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
             via_device = None
             if device is not None and device.parent_device_id:
                 parent = coordinator.data.devices.get(device.parent_device_id)
-                if parent is not None and parent.type_code != 21:
+                if parent is not None and runtime_device_visible(entry, parent):
                     via_device = (
                         DOMAIN,
                         f"{entry.entry_id}:runtime_device:{parent.id}",
@@ -97,6 +98,11 @@ class KentixEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
             configuration_url=coordinator.client.base_url,
         )
 
+    @property
+    def available(self) -> bool:
+        """Keep the last known state through two transient poll failures."""
+        return self.coordinator.integration_available
+
 
 class KentixHubEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
     """Base for integration-level entities without a synthetic device."""
@@ -108,3 +114,8 @@ class KentixHubEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
     ) -> None:
         super().__init__(coordinator)
         self._entry = entry
+
+    @property
+    def available(self) -> bool:
+        """Integration-level diagnostics remain available during API outages."""
+        return True

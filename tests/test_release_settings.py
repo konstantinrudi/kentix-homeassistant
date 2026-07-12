@@ -19,14 +19,27 @@ def _constant_value(name: str):
     raise AssertionError(f"Constant {name} not found")
 
 
-def test_default_polling_interval_is_60_seconds() -> None:
-    assert _constant_value("DEFAULT_SCAN_INTERVAL") == 60
+def test_default_polling_interval_is_five_minutes() -> None:
+    assert _constant_value("DEFAULT_SCAN_INTERVAL") == 300
 
 
 def test_automatic_webhook_management_is_enabled_by_default() -> None:
     assert _constant_value("DEFAULT_MANAGE_WEBHOOK") is True
     config_flow = (ROOT / "custom_components/kentix/config_flow.py").read_text()
     assert "CONF_MANAGE_WEBHOOK: DEFAULT_MANAGE_WEBHOOK" in config_flow
+
+
+def test_access_managers_are_hidden_by_default_and_configurable() -> None:
+    assert _constant_value("DEFAULT_SHOW_ACCESS_MANAGERS") is False
+    config_flow = (ROOT / "custom_components/kentix/config_flow.py").read_text()
+    assert "CONF_SHOW_ACCESS_MANAGERS" in config_flow
+    translations = json.loads(
+        (ROOT / "custom_components/kentix/translations/de.json").read_text()
+    )
+    assert (
+        translations["options"]["step"]["init"]["data"]["show_access_managers"]
+        == "AccessManager in Home Assistant anzeigen"
+    )
 
 
 def test_polling_range_remains_configurable() -> None:
@@ -41,9 +54,9 @@ def test_german_polling_guidance_is_present() -> None:
     description = payload["options"]["step"]["init"]["data_description"][
         "scan_interval"
     ]
-    assert "Standard: 60 Sekunden" in description
-    assert "ältere Kentix-Hardware" in description
-    assert "30 Sekunden" in description
+    assert "Standard: 300 Sekunden" in description
+    assert "Sicherheitsabgleichen" in description
+    assert "MultiSensor-Werte" in description
 
 
 def test_tls_verification_is_disabled_by_default() -> None:
@@ -81,9 +94,9 @@ def test_pytest_asyncio_mode_matches_home_assistant_core() -> None:
     assert 'asyncio_default_fixture_loop_scope = "function"' in pyproject
 
 
-def test_release_version_is_0_4_0() -> None:
+def test_release_version_is_0_4_1() -> None:
     manifest = json.loads((ROOT / "custom_components/kentix/manifest.json").read_text())
-    assert manifest["version"] == "0.4.0"
+    assert manifest["version"] == "0.4.1"
 
 
 def test_inventory_and_battery_refresh_are_limited_to_four_hours() -> None:

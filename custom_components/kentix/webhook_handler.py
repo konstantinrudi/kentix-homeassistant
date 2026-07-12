@@ -37,8 +37,9 @@ async def async_handle_webhook(
         payload = None
 
     coordinator.async_note_webhook(payload)
-    hass.async_create_task(
-        coordinator.async_request_refresh(),
-        "Refresh Kentix after webhook",
-    )
+    if not coordinator.async_apply_managed_webhook(payload):
+        hass.async_create_task(
+            coordinator.async_request_refresh(),
+            "Refresh Kentix after unrecognized webhook",
+        )
     return Response(status=200)
