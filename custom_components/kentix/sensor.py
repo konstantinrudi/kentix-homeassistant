@@ -237,7 +237,7 @@ def _runtime_sensor_factory(
     coordinator, entry: ConfigEntry, device: KentixRuntimeDevice
 ) -> list[SensorEntity]:
     """Create numeric entities exposed and enabled by one runtime device."""
-    if not runtime_device_visible(entry, device):
+    if not runtime_device_visible(entry, device, coordinator.data.door_locks):
         return []
     entities: list[SensorEntity] = []
     for key in _RUNTIME_SENSOR_DESCRIPTORS:

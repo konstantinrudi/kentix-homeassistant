@@ -152,7 +152,7 @@
         },
         "data_description": {
           "scan_interval": "Time between safety reconciliations through GET /api/systemvalues. Default: 300 seconds. Valid managed webhooks apply switching states immediately; this interval updates normal MultiSensor values and repairs missed events. Choose a lower value for more frequent environmental updates.",
-          "manage_webhook": "Creates one active, uniquely named webhook in KentixONE. Switching states and alarm counters are applied directly from a validated payload; unknown payloads still trigger an API reconciliation. Other webhooks are never modified.",
+          "manage_webhook": "Manage automatically. The Kentix user must be allowed to read, create, update, and delete webhooks. Without these permissions the integration continues to work through polling.",
           "show_access_managers": "Disabled by default. AccessManagers are technical controllers for access control and DoorLocks. Hiding them removes only the AccessManager device and its own measurements; DoorLocks, alarm groups, and their controls remain fully visible. Enable this option to expose the AccessManager itself with its connectivity and diagnostic measurements."
         },
         "description": "Managed webhooks update alarm groups immediately. The system-values interval is a safety reconciliation and updates continuously changing MultiSensor values. Inventory is read at most every four hours.",

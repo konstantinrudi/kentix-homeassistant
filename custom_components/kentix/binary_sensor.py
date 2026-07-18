@@ -146,7 +146,7 @@ def _runtime_binary_factory(
     coordinator, entry: ConfigEntry, device: KentixRuntimeDevice
 ) -> list[BinarySensorEntity]:
     """Create enabled binary measurements for a runtime device."""
-    if not runtime_device_visible(entry, device):
+    if not runtime_device_visible(entry, device, coordinator.data.door_locks):
         return []
     entities: list[BinarySensorEntity] = []
     for key in _RUNTIME_BINARY_DESCRIPTORS:

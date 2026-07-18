@@ -47,12 +47,14 @@ def async_sync_devices(
 
     runtime_devices = coordinator.data.devices
     for runtime in runtime_devices.values():
-        if not runtime_device_visible(entry, runtime):
+        if not runtime_device_visible(entry, runtime, coordinator.data.door_locks):
             continue
         via_device = None
         if runtime.parent_device_id:
             parent = runtime_devices.get(runtime.parent_device_id)
-            if parent is not None and runtime_device_visible(entry, parent):
+            if parent is not None and runtime_device_visible(
+                entry, parent, coordinator.data.door_locks
+            ):
                 via_device = (
                     DOMAIN,
                     f"{entry.entry_id}:runtime_device:{parent.id}",
@@ -76,7 +78,11 @@ def async_sync_devices(
             registry.async_update_device(device.id, via_device_id=None)
 
     _async_remove_hidden_runtime_devices(
-        registry, er.async_get(hass), entry, runtime_devices
+        registry,
+        er.async_get(hass),
+        entry,
+        runtime_devices,
+        coordinator.data.door_locks,
     )
 
     for door_lock in coordinator.data.door_locks.values():
@@ -102,10 +108,11 @@ def _async_remove_hidden_runtime_devices(
     entity_registry: er.EntityRegistry,
     entry: ConfigEntry,
     runtime_devices,
+    door_locks,
 ) -> None:
     """Remove previously exposed runtime devices that are now filtered out."""
     for runtime in runtime_devices.values():
-        if runtime_device_visible(entry, runtime):
+        if runtime_device_visible(entry, runtime, door_locks):
             continue
         device = registry.async_get_device(
             identifiers={(DOMAIN, f"{entry.entry_id}:runtime_device:{runtime.id}")}

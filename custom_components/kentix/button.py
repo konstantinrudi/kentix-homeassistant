@@ -9,7 +9,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .discovery import async_setup_dynamic_entities
-from .entity import KentixEntity, KentixHubEntity
+from .entity import KentixEntity, KentixManagementEntity
 from .models import KentixDoorLock
 
 PARALLEL_UPDATES = 1
@@ -63,7 +63,7 @@ class KentixReleaseLockButton(KentixEntity, ButtonEntity):
         )
 
 
-class KentixRepairWebhookButton(KentixHubEntity, ButtonEntity):
+class KentixRepairWebhookButton(KentixManagementEntity, ButtonEntity):
     """Reconcile the managed KentixONE webhook and all assignments."""
 
     _attr_translation_key = "repair_webhook"
@@ -79,7 +79,7 @@ class KentixRepairWebhookButton(KentixHubEntity, ButtonEntity):
         self.coordinator.async_update_listeners()
 
 
-class KentixRefreshStatesButton(KentixHubEntity, ButtonEntity):
+class KentixRefreshStatesButton(KentixManagementEntity, ButtonEntity):
     """Refresh the shared Kentix runtime values now."""
 
     _attr_translation_key = "refresh_states"
@@ -95,7 +95,7 @@ class KentixRefreshStatesButton(KentixHubEntity, ButtonEntity):
         await self.coordinator.async_refresh_states()
 
 
-class KentixRediscoverDevicesButton(KentixHubEntity, ButtonEntity):
+class KentixRediscoverDevicesButton(KentixManagementEntity, ButtonEntity):
     """Force Kentix inventory discovery instead of waiting four hours."""
 
     _attr_translation_key = "rediscover_devices"

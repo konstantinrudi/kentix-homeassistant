@@ -16,9 +16,11 @@ from .api import KentixApiClient
 from .const import (
     CONF_API_TOKEN,
     CONF_MANAGE_WEBHOOK,
+    CONF_SHOW_ACCESS_MANAGERS,
     CONF_VERIFY_SSL,
     CONF_WEBHOOK_ID,
     DEFAULT_MANAGE_WEBHOOK,
+    DEFAULT_SHOW_ACCESS_MANAGERS,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
     PLATFORMS,
@@ -48,6 +50,15 @@ class KentixRuntimeData:
 
 async def async_setup_entry(hass: HomeAssistant, entry: KentixConfigEntry) -> bool:
     """Set up Kentix from a config entry."""
+    if CONF_SHOW_ACCESS_MANAGERS not in entry.options:
+        hass.config_entries.async_update_entry(
+            entry,
+            options={
+                **entry.options,
+                CONF_SHOW_ACCESS_MANAGERS: DEFAULT_SHOW_ACCESS_MANAGERS,
+            },
+        )
+
     webhook_id = entry.data.get(CONF_WEBHOOK_ID)
     if not webhook_id:
         webhook_id = ha_webhook.async_generate_id()

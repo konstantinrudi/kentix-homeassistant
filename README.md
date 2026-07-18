@@ -51,7 +51,14 @@ The setup flow asks for:
 
 TLS certificate verification is disabled by default because many local KentixONE installations use self-signed certificates.
 
-Use a dedicated Kentix user with only the permissions required for the desired alarm groups, DoorLocks and webhook configuration.
+Use a dedicated Kentix user. A practical setup is a separate Kentix user group for Home Assistant with only these required permissions:
+
+- read access to the alarm groups and devices that Home Assistant should expose,
+- permission to arm and disarm the selected alarm groups,
+- permission to release the selected DoorLocks,
+- read, create, update and delete permissions for **Automation → Webhooks** when automatic webhook management is enabled.
+
+Without webhook permissions the integration continues polling, but **Automatic Kentix webhook** reports a degraded state and the repair button cannot create or update the KentixONE webhook.
 
 ## Refresh schedule and API load
 
@@ -135,9 +142,9 @@ Known type mappings currently include:
 
 - `2` → MultiSensor-RF-BAT
 - `3` → MultiSensor-DOOR
-- `21` → DoorLock
+- `21`, `25`, `26`, `28` → DoorLock generations
 - `101` → AlarmManager
-- `105` → AccessManager
+- AccessManagers are detected from the DoorLock controller relationship; type `105` is also recognized explicitly
 
 AccessManagers are hidden by default because they commonly serve only as technical hosts for DoorLocks. Enable **Show AccessManagers in Home Assistant** in the integration options to expose their device and measurements. DoorLocks remain visible regardless of this option.
 
@@ -207,10 +214,11 @@ Copyright 2026 [@konstantinrudi](https://github.com/konstantinrudi). Attribution
 
 KentixONE remains the source of truth for alarm-group hierarchy. Home Assistant sends only one arm/disarm command for the selected group and never repeats commands for parent or child groups. A direct webhook updates only the group identified by KentixONE.
 
-Two integration-level buttons are available:
+Three maintenance buttons are shown on the first top-level **Standort** device:
 
 - **Repair Kentix webhook** reconciles the managed webhook and all alarm-group assignments.
-- **Refresh Kentix data now** refreshes system values and forces a full inventory discovery.
+- **Refresh states now** refreshes `/api/systemvalues` only.
+- **Rediscover devices** refreshes system values and forces a complete inventory discovery.
 
 The last known entity values remain available during two transient `/api/systemvalues` failures. Entities become unavailable after the third consecutive failure. With the default five-minute interval this is approximately 15 minutes. A successful refresh resets the counter immediately.
 

@@ -11,6 +11,7 @@ from .coordinator import KentixDataUpdateCoordinator
 from .naming import (
     alarm_group_display_name,
     alarm_group_parent_identifier,
+    alarm_group_sort_key,
     door_lock_parent_identifier,
 )
 from .visibility import runtime_device_visible
@@ -64,7 +65,9 @@ class KentixEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
             via_device = None
             if device is not None and device.parent_device_id:
                 parent = coordinator.data.devices.get(device.parent_device_id)
-                if parent is not None and runtime_device_visible(entry, parent):
+                if parent is not None and runtime_device_visible(
+                    entry, parent, coordinator.data.door_locks
+                ):
                     via_device = (
                         DOMAIN,
                         f"{entry.entry_id}:runtime_device:{parent.id}",
@@ -119,3 +122,26 @@ class KentixHubEntity(CoordinatorEntity[KentixDataUpdateCoordinator]):
     def available(self) -> bool:
         """Integration-level diagnostics remain available during API outages."""
         return True
+
+
+class KentixManagementEntity(KentixHubEntity):
+    """Integration-level control attached to the first root location device."""
+
+    def __init__(
+        self, coordinator: KentixDataUpdateCoordinator, entry: ConfigEntry
+    ) -> None:
+        super().__init__(coordinator, entry)
+        groups = coordinator.data.alarm_groups
+        roots = [
+            group for group in groups.values() if group.parent_group_id not in groups
+        ]
+        if not roots:
+            return
+        root = min(roots, key=lambda group: alarm_group_sort_key(group, groups))
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}:alarm_group:{root.id}")},
+            name=alarm_group_display_name(root, groups),
+            manufacturer="Kentix",
+            model="Alarm Group",
+            configuration_url=coordinator.client.base_url,
+        )
