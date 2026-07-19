@@ -102,6 +102,26 @@ def _as_int(value: Any) -> int | None:
         return None
 
 
+def _sum_nested_counts(value: Any) -> int | None:
+    """Sum Kentix ``pending`` and ``quitable`` counters by alarm category."""
+    if not isinstance(value, Mapping):
+        return None
+
+    total = 0
+    found = False
+    for category in value.values():
+        if not isinstance(category, Mapping):
+            continue
+        for key in ("pending", "quitable", "quittable"):
+            count = _as_int(category.get(key))
+            if count is None:
+                continue
+            total += max(0, count)
+            found = True
+
+    return total if found else None
+
+
 def _as_battery_percent(value: Any) -> int | None:
     """Convert numeric or categorical Kentix battery values to percent."""
     numeric = _as_int(value)
@@ -270,6 +290,9 @@ class KentixAlarmGroup:
                 "pending_alarms",
             )
         )
+        if alarm_count is None:
+            alarm_count = _sum_nested_counts(source.get("active_alarms"))
+
         warning_count = _as_int(
             _first(
                 source,
@@ -279,6 +302,8 @@ class KentixAlarmGroup:
                 "pending_warnings",
             )
         )
+        if warning_count is None:
+            warning_count = _sum_nested_counts(source.get("active_warnings"))
         if alarm_count is not None and alarm_count > 0:
             triggered = True
 

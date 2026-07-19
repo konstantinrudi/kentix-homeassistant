@@ -548,3 +548,91 @@ def test_runtime_persistent_telemetry_is_kept() -> None:
     merged = merge_runtime_devices(previous, current)
     assert merged["7"].measurement("battery_level").value == 100
     assert merged["7"].measurement("signal_strength").value == -40.0
+
+
+def test_real_systemvalues_alarm_group_counts_are_normalized() -> None:
+    group = KentixAlarmGroup.from_payload(
+        {
+            "id": 1,
+            "name": "Test area",
+            "armed": True,
+            "status": "alarm",
+            "active_alarms": {
+                "armed-active": {"pending": 0, "quitable": 1},
+                "always-active": {"pending": 0, "quitable": 0},
+                "fire": {"pending": 0, "quitable": 0},
+                "sabotage": {"pending": 0, "quitable": 0},
+                "system": {"pending": 0, "quitable": 0},
+            },
+            "active_warnings": {
+                "armed-active": {"pending": 0, "quitable": 0},
+                "always-active": {"pending": 0, "quitable": 0},
+                "fire": {"pending": 0, "quitable": 0},
+                "sabotage": {"pending": 0, "quitable": 0},
+                "system": {"pending": 0, "quitable": 0},
+            },
+        }
+    )
+
+    assert group.armed is True
+    assert group.raw_state == "alarm"
+    assert group.alarm_count == 1
+    assert group.warning_count == 0
+    assert group.triggered is True
+    assert group.event_state == "triggered"
+
+
+def test_nested_alarm_count_is_a_trigger_fallback() -> None:
+    group = KentixAlarmGroup.from_payload(
+        {
+            "id": 1,
+            "name": "Test area",
+            "armed": True,
+            "status": "ok",
+            "active_alarms": {
+                "system": {"pending": "1", "quitable": "0"}
+            },
+        }
+    )
+
+    assert group.alarm_count == 1
+    assert group.triggered is True
+    assert group.event_state == "triggered"
+
+
+def test_real_alarm_lifecycle_returns_to_armed_after_acknowledge() -> None:
+    payloads = [
+        {
+            "id": 1,
+            "name": "Test area",
+            "armed": False,
+            "status": "ok",
+            "active_alarms": {
+                "armed-active": {"pending": 0, "quitable": 0}
+            },
+        },
+        {
+            "id": 1,
+            "name": "Test area",
+            "armed": True,
+            "status": "alarm",
+            "active_alarms": {
+                "armed-active": {"pending": 0, "quitable": 1}
+            },
+        },
+        {
+            "id": 1,
+            "name": "Test area",
+            "armed": True,
+            "status": "ok",
+            "active_alarms": {
+                "armed-active": {"pending": 0, "quitable": 0}
+            },
+        },
+    ]
+
+    assert [KentixAlarmGroup.from_payload(item).event_state for item in payloads] == [
+        "disarmed",
+        "triggered",
+        "armed",
+    ]
