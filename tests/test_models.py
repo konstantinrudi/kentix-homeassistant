@@ -589,9 +589,7 @@ def test_nested_alarm_count_is_a_trigger_fallback() -> None:
             "name": "Test area",
             "armed": True,
             "status": "ok",
-            "active_alarms": {
-                "system": {"pending": "1", "quitable": "0"}
-            },
+            "active_alarms": {"system": {"pending": "1", "quitable": "0"}},
         }
     )
 
@@ -607,27 +605,21 @@ def test_real_alarm_lifecycle_returns_to_armed_after_acknowledge() -> None:
             "name": "Test area",
             "armed": False,
             "status": "ok",
-            "active_alarms": {
-                "armed-active": {"pending": 0, "quitable": 0}
-            },
+            "active_alarms": {"armed-active": {"pending": 0, "quitable": 0}},
         },
         {
             "id": 1,
             "name": "Test area",
             "armed": True,
             "status": "alarm",
-            "active_alarms": {
-                "armed-active": {"pending": 0, "quitable": 1}
-            },
+            "active_alarms": {"armed-active": {"pending": 0, "quitable": 1}},
         },
         {
             "id": 1,
             "name": "Test area",
             "armed": True,
             "status": "ok",
-            "active_alarms": {
-                "armed-active": {"pending": 0, "quitable": 0}
-            },
+            "active_alarms": {"armed-active": {"pending": 0, "quitable": 0}},
         },
     ]
 
